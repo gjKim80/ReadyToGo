@@ -47,11 +47,33 @@ export default handler(async (req, res) => {
     ok: true,
     time: new Date().toISOString(),
     region: process.env.VERCEL_REGION || null,
-    configured: {
-      "NAVER Directions 5 (자차 경로)": configured.naver ? "설정됨" : "미설정",
-      "기상청 단기예보 (날씨)": configured.kma ? "설정됨" : "미설정",
-      "NAVER 지역검색 (장소 검색)": configured.naverSearch ? "설정됨(선택)" : "미설정(선택)",
-      "대중교통 경로": configured.odsay ? "키는 있으나 미구현" : "미구현 · 앱 내 추정 사용",
+    /** 설정 화면이 그대로 읽어 쓰는 서비스별 상태 */
+    services: {
+      weather: {
+        label: "날씨",
+        origin: "기상청 단기예보",
+        ready: configured.kma,
+        keys: ["KMA_SERVICE_KEY"],
+      },
+      directions: {
+        label: "자차 경로",
+        origin: "NAVER Directions 5",
+        ready: configured.naver,
+        keys: ["NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET"],
+      },
+      places: {
+        label: "장소 검색",
+        origin: configured.naverSearch ? "NAVER 지역검색 + Geocoding" : "NAVER Geocoding",
+        ready: configured.naver,
+        optional: !configured.naverSearch,
+        keys: ["NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET", "NAVER_SEARCH_CLIENT_ID", "NAVER_SEARCH_CLIENT_SECRET"],
+      },
+      transit: {
+        label: "대중교통",
+        origin: "미구현 · 앱 내 추정",
+        ready: false,
+        keys: ["ODSAY_API_KEY"],
+      },
     },
     allowedOrigins: process.env.ALLOWED_ORIGINS || "*",
   };

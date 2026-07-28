@@ -1,6 +1,6 @@
 /** 설정 — 출퇴근 경로, 개인 여유시간, 알림, 데이터 관리, API 연동 상태 */
 
-import { config, isMock } from "../api/config.js";
+import { config, getProxyStatus, isMock } from "../api/config.js";
 import { canNotify, clearAlerts, requestPermission } from "../core/notify.js";
 import {
   getHome,
@@ -38,6 +38,51 @@ function pickerRows(selectedId) {
 }
 
 export async function render(root, ctx = {}) {
+  /**
+   * 프록시의 서비스별 키 설정 상태(/api/health)를 비동기로 채운다.
+   * 키를 하나씩 넣어가는 동안 어느 API가 실데이터로 켜졌는지 앱에서 바로 확인할 수 있다.
+   */
+  async function paintApiStatus({ refresh = false } = {}) {
+    const slot = root.querySelector("[data-api-status]");
+    if (!slot) return;
+    if (isMock()) {
+      slot.innerHTML = "";
+      return;
+    }
+
+    slot.innerHTML = `<p class="muted" style="font-size:12px;font-weight:600">상태 확인 중…</p>`;
+    const status = await getProxyStatus({ refresh });
+
+    // 확인하는 동안 다른 화면으로 이동했을 수 있다
+    const target = root.querySelector("[data-api-status]");
+    if (!target) return;
+
+    if (!status?.services) {
+      target.innerHTML = `<p class="muted" style="font-size:12px;font-weight:600;line-height:1.6">
+        프록시에 연결할 수 없어 전체를 목 데이터로 동작하고 있습니다.
+      </p>`;
+      return;
+    }
+
+    const rows = Object.values(status.services)
+      .map((s) => {
+        const ok = Boolean(s.ready);
+        return `
+          <div class="row row--between" style="padding:7px 0">
+            <span style="font-size:13.5px;font-weight:700">
+              ${escapeHtml(s.label)}
+              <span class="muted" style="font-weight:600">· ${escapeHtml(s.origin)}</span>
+            </span>
+            <span class="badge ${ok ? "badge--ok" : "badge--warn"}">${ok ? "실 API" : "목 데이터"}</span>
+          </div>`;
+      })
+      .join("");
+
+    target.innerHTML = `
+      <div style="border-top:1px solid var(--c-line);padding-top:6px">${rows}</div>
+      <button class="btn btn--ghost btn--block" data-act="recheck" style="margin-top:10px">연동 상태 다시 확인</button>`;
+  }
+
   function paint() {
     const s = getState();
     const home = getHome();
@@ -120,18 +165,19 @@ export async function render(root, ctx = {}) {
       <p class="section-title" style="margin-top:20px">데이터 연동</p>
       <div class="card">
         <div class="row row--between">
-          <span style="font-size:14.5px;font-weight:700">날씨 · 대중교통 · 자차 경로</span>
-          <span class="badge ${isMock() ? "badge--warn" : "badge--ok"}">${isMock() ? "목 데이터" : "실 API"}</span>
+          <span style="font-size:14.5px;font-weight:700">외부 데이터</span>
+          <span class="badge ${isMock() ? "badge--warn" : "badge--ok"}">${isMock() ? "목 데이터" : "프록시 연결"}</span>
         </div>
         <p class="muted" style="font-size:12px;font-weight:600;line-height:1.6;margin-top:10px">
           ${
             isMock()
-              ? `기상청·공공데이터포털·NAVER Directions는 서버 프록시가 필요합니다.
-                 <code>src/js/api/config.js</code>의 <code>proxyBase</code>에 서버 프록시 주소를 넣으면
+              ? `기상청·NAVER Directions는 서버 프록시가 필요합니다.
+                 <code>src/js/api/config.js</code>의 <code>proxyBase</code>에 프록시 주소를 넣으면
                  실시간 데이터로 전환됩니다.`
               : `프록시: <code>${escapeHtml(config.proxyBase)}</code>`
           }
         </p>
+        <div data-api-status style="margin-top:12px"></div>
         <div class="row row--between" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--c-line)">
           <span style="font-size:14.5px;font-weight:700">지도 · 핀 위치 → 주소</span>
           <span class="badge ${config.naverMapClientId ? "badge--ok" : "badge--warn"}">
@@ -162,11 +208,19 @@ export async function render(root, ctx = {}) {
       <p class="muted" style="font-size:11.5px;font-weight:600;text-align:center;margin-top:16px">
         ReadyToGo · 저장 데이터는 이 브라우저에만 보관됩니다
       </p>`;
+
+    // innerHTML을 새로 쓰면 상태 블록도 날아가므로 매 paint마다 다시 채운다(응답은 캐시됨)
+    paintApiStatus();
   }
 
   paint();
 
   /* ---------- 이벤트 ---------- */
+
+  delegate(root, "click", '[data-act="recheck"]', async () => {
+    await paintApiStatus({ refresh: true });
+    toast("연동 상태를 다시 확인했어요");
+  });
 
   delegate(root, "click", "[data-slot]", (_e, el) => {
     const slot = el.dataset.slot;
