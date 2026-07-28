@@ -1,0 +1,315 @@
+/** 홈 — 평일/주말 모드별 출발 카운트다운, 날씨·준비물 가이드, 위젯 미리보기 */
+
+import { getWeather } from "../api/weather.js";
+import { getCurrentPosition, reverseGeocode } from "../api/places.js";
+import { planTrip } from "../core/departure.js";
+import { buildAdvice } from "../core/advice.js";
+import { buildShareText, shareText } from "../core/share.js";
+import { clearAlerts, scheduleDepartureAlerts } from "../core/notify.js";
+import {
+  getHome,
+  getPlace,
+  getState,
+  getWork,
+  listFavorites,
+  setTrip,
+} from "../store.js";
+import { toast } from "../ui/components.js";
+import {
+  adviceBanners,
+  countdownBlock,
+  legsList,
+  liveArrivals,
+  optionCard,
+  planNotes,
+  tickCountdown,
+  weatherCard,
+  widgetCard,
+} from "../ui/parts.js";
+import {
+  atTime,
+  delegate,
+  escapeHtml,
+  fmtClock,
+  fmtDateKo,
+  nextOccurrence,
+} from "../util.js";
+
+/** 세션 동안 유지되는 현재 위치 캐시 */
+let cachedOrigin = null;
+
+/** 사용자가 수동으로 뒤집은 평일 방향 (null이면 시간대 기준 자동) */
+let directionOverride = null;
+
+async function currentOrigin() {
+  if (cachedOrigin) return cachedOrigin;
+  const coord = await getCurrentPosition();
+  const geo = await reverseGeocode(coord);
+  cachedOrigin = { id: null, name: "현재 위치", address: geo.address, ...coord, icon: "📍" };
+  return cachedOrigin;
+}
+
+/** 현재 모드에 맞는 출발지/목적지/도착 목표를 결정한다. */
+async function resolveTrip(state, now) {
+  if (state.mode === "weekday") {
+    const home = getHome();
+    const work = getWork();
+    if (!home || !work) {
+      return { needsSetup: "commute" };
+    }
+
+    const arriveTarget = atTime(state.commute.arriveAt, now);
+    const auto = now < arriveTarget ? "toWork" : "toHome";
+    const direction = directionOverride || auto;
+
+    if (direction === "toWork") {
+      const arriveBy = arriveTarget > now ? arriveTarget : nextOccurrence(state.commute.arriveAt, now);
+      return {
+        direction,
+        origin: home,
+        destination: work,
+        arriveBy,
+        planNow: now,
+        title: `출근 · ${work.name}`,
+        subtitle: `${fmtClock(arriveBy)} 도착 목표`,
+      };
+    }
+
+    const leaveTarget = atTime(state.commute.leaveAt, now);
+    const departTarget = leaveTarget > now ? leaveTarget : now;
+    return {
+      direction,
+      origin: work,
+      destination: home,
+      arriveBy: null,
+      planNow: departTarget,
+      title: `퇴근 · ${home.name}`,
+      subtitle: `${fmtClock(departTarget)} 회사 출발 기준`,
+    };
+  }
+
+  // 주말 모드
+  const destination = getPlace(state.trip.destinationId);
+  if (!destination) return { needsSetup: "destination" };
+
+  const origin = state.trip.originId ? getPlace(state.trip.originId) : await currentOrigin();
+  const arriveBy = state.trip.arriveBy ? nextOccurrence(state.trip.arriveBy, now) : null;
+
+  return {
+    origin,
+    destination,
+    arriveBy,
+    planNow: now,
+    title: destination.name,
+    subtitle: arriveBy ? `${fmtClock(arriveBy)} 도착 목표` : "지금 출발 기준",
+  };
+}
+
+function setupCard(kind) {
+  if (kind === "commute") {
+    return `
+      <div class="card">
+        <p class="empty">평일 모드를 쓰려면 집과 회사를 먼저 등록하세요.</p>
+        <a class="btn btn--primary btn--block" href="#/settings">출퇴근 경로 설정하기</a>
+      </div>`;
+  }
+  const favorites = listFavorites();
+  return `
+    <div class="card">
+      <p class="empty">어디로 가시나요?<br />목적지를 정하면 출발 시각을 역산해 드려요.</p>
+      <a class="btn btn--primary btn--block" href="#/route">목적지 검색하기</a>
+      ${
+        favorites.length
+          ? `<p class="section-title" style="margin:16px 0 8px">⭐ 즐겨찾기</p>
+             <div class="row" style="gap:8px;flex-wrap:wrap">
+               ${favorites
+                 .map(
+                   (p) =>
+                     `<button class="chip" data-quick="${escapeHtml(p.id)}">${p.icon || "📍"} ${escapeHtml(p.name)}</button>`,
+                 )
+                 .join("")}
+             </div>`
+          : ""
+      }
+    </div>`;
+}
+
+export async function render(root, ctx = {}) {
+  const now0 = new Date();
+  const state = getState();
+
+  root.innerHTML = `
+    <p class="section-title">${escapeHtml(fmtDateKo(now0))} · ${state.mode === "weekday" ? "평일 모드" : "주말 모드"}</p>
+    <div class="card"><div class="skeleton" style="height:52px"></div></div>
+    <div class="card" style="margin-top:12px"><div class="skeleton" style="height:150px"></div></div>`;
+
+  const trip = await resolveTrip(state, now0);
+
+  if (trip.needsSetup) {
+    root.innerHTML = `
+      <p class="section-title">${escapeHtml(fmtDateKo(now0))} · ${state.mode === "weekday" ? "평일 모드" : "주말 모드"}</p>
+      ${setupCard(trip.needsSetup)}`;
+    delegate(root, "click", "[data-quick]", (_e, el) => {
+      setTrip({ destinationId: el.dataset.quick });
+      ctx.refresh?.();
+    });
+    return () => {};
+  }
+
+  const view = {
+    plans: [],
+    selectedId: null,
+    weather: null,
+    destWeather: null,
+  };
+
+  async function load() {
+    const s = getState();
+    const now = new Date();
+    const planNow = trip.planNow > now ? trip.planNow : now;
+
+    const [plans, weather, destWeather] = await Promise.all([
+      planTrip({
+        origin: trip.origin,
+        destination: trip.destination,
+        arriveBy: trip.arriveBy,
+        now: planNow,
+        bufferMin: s.settings.bufferMin,
+        walkPace: s.settings.walkPace,
+        prefer: s.mode === "weekday" ? s.settings.preferredMode : s.trip.mode,
+      }),
+      getWeather(trip.origin, { now }),
+      getWeather(trip.destination, { now }),
+    ]);
+
+    view.plans = plans;
+    view.weather = weather;
+    view.destWeather = destWeather;
+    if (!plans.some((p) => p.id === view.selectedId)) view.selectedId = plans[0]?.id ?? null;
+  }
+
+  function selected() {
+    return view.plans.find((p) => p.id === view.selectedId) || view.plans[0] || null;
+  }
+
+  function paint() {
+    const s = getState();
+    const plan = selected();
+    const tips = buildAdvice(view.weather, view.destWeather, plan);
+    const isWeekday = s.mode === "weekday";
+
+    root.innerHTML = `
+      <p class="section-title">${escapeHtml(fmtDateKo(new Date()))} · ${isWeekday ? "평일 모드" : "주말 모드"}</p>
+
+      ${weatherCard(view.weather, trip.origin.name)}
+      ${adviceBanners(tips)}
+
+      <div class="card" style="margin-top:12px">
+        <div class="row row--between" style="margin-bottom:4px">
+          <div class="grow">
+            <p style="font-size:16px;font-weight:800" class="truncate">${escapeHtml(trip.title)}</p>
+            <p class="muted" style="font-size:12.5px;font-weight:600;margin-top:2px">
+              ${escapeHtml(trip.origin.name)} → ${escapeHtml(trip.destination.name)} · ${escapeHtml(trip.subtitle)}
+            </p>
+          </div>
+          ${
+            isWeekday
+              ? `<div class="mode-switch" style="flex:none">
+                   <button class="mode-switch__btn" data-dir="toWork" aria-selected="${trip.direction === "toWork"}">출근</button>
+                   <button class="mode-switch__btn" data-dir="toHome" aria-selected="${trip.direction === "toHome"}">퇴근</button>
+                 </div>`
+              : `<button class="btn btn--sm btn--ghost" data-act="change-dest" style="flex:none">변경</button>`
+          }
+        </div>
+
+        ${plan ? countdownBlock(plan) : `<p class="empty">경로를 찾을 수 없습니다.</p>`}
+      </div>
+
+      ${plan ? `<div class="card">${legsList(plan)}${planNotes(plan)}</div>` : ""}
+      ${plan ? liveArrivals(plan) : ""}
+
+      ${
+        plan
+          ? `<div class="row" style="gap:8px;margin-top:12px">
+               <button class="btn btn--primary grow" data-act="share">🔗 ETA 공유</button>
+               <button class="btn btn--ghost grow" data-act="detail">경로 상세</button>
+             </div>`
+          : ""
+      }
+
+      <p class="section-title" style="margin-top:22px">다른 이동수단</p>
+      <div class="stack">
+        ${view.plans.map((p) => optionCard(p, { selected: p.id === view.selectedId })).join("")}
+      </div>
+
+      <p class="section-title" style="margin-top:22px">홈 화면 위젯 미리보기</p>
+      ${widgetCard({ plan, weather: view.weather, destName: trip.destination.name })}
+      <p class="muted" style="font-size:11.5px;font-weight:600;line-height:1.6;margin-top:8px">
+        브라우저 메뉴의 &lsquo;홈 화면에 추가&rsquo;로 설치하면 이 카드가 앱 아이콘에서 바로 열립니다.
+      </p>`;
+
+    tickCountdown(root, plan);
+
+    if (s.settings.notify) scheduleDepartureAlerts(plan, trip.destination.name);
+  }
+
+  /* ---------- 이벤트 ---------- */
+
+  delegate(root, "click", "[data-plan]", (_e, el) => {
+    view.selectedId = el.dataset.plan;
+    paint();
+  });
+
+  delegate(root, "click", "[data-dir]", (_e, el) => {
+    if (directionOverride === el.dataset.dir) return;
+    directionOverride = el.dataset.dir;
+    ctx.refresh?.();
+  });
+
+  delegate(root, "click", "[data-act]", async (_e, el) => {
+    const act = el.dataset.act;
+    if (act === "change-dest") {
+      location.hash = "#/route";
+      return;
+    }
+    if (act === "detail") {
+      setTrip({ destinationId: trip.destination.id, mode: selected()?.kind === "drive" ? "driving" : "transit" });
+      location.hash = "#/route";
+      return;
+    }
+    if (act === "share") {
+      const plan = selected();
+      if (!plan) return;
+      const text = buildShareText({ plan, destination: trip.destination, tone: "now" });
+      const result = await shareText(text);
+      if (result === "copied") toast("공유 문구를 클립보드에 복사했어요");
+      else if (result === "failed") toast("공유에 실패했어요");
+    }
+  });
+
+  /* ---------- 라이프사이클 ---------- */
+
+  let disposed = false;
+
+  await load();
+  if (disposed) return () => {};
+  paint();
+
+  const ticker = setInterval(() => {
+    if (disposed) return;
+    tickCountdown(root, selected());
+  }, 1000);
+
+  const refresher = setInterval(async () => {
+    if (disposed) return;
+    await load();
+    if (!disposed) paint();
+  }, Math.max(20, getState().settings.autoRefreshSec) * 1000);
+
+  return () => {
+    disposed = true;
+    clearInterval(ticker);
+    clearInterval(refresher);
+    clearAlerts();
+  };
+}

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1B64DA" />
+  <meta name="description" content="외출 준비부터 문 앞 출발까지, 한눈에 파악하는 스마트 외출 가이드" />
+  <title>ReadyToGo</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./assets/icon-apple-180.png" />
+  <link rel="stylesheet" href="./src/css/styles.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <header class="topbar">
+      <div class="topbar__brand">
+        <span class="topbar__logo" aria-hidden="true"></span>
+        <h1 class="topbar__title">ReadyToGo</h1>
+      </div>
+      <div class="mode-switch" role="tablist" aria-label="이동 모드">
+        <button class="mode-switch__btn" role="tab" data-mode="weekday">평일</button>
+        <button class="mode-switch__btn" role="tab" data-mode="weekend">주말</button>
+      </div>
+    </header>
+
+    <main id="view" class="view" tabindex="-1"></main>
+
+    <nav class="tabbar" aria-label="주요 메뉴">
+      <a class="tabbar__item" href="#/home" data-tab="home">
+        <span class="tabbar__icon" data-icon="home" aria-hidden="true"></span>
+        <span class="tabbar__label">홈</span>
+      </a>
+      <a class="tabbar__item" href="#/route" data-tab="route">
+        <span class="tabbar__icon" data-icon="route" aria-hidden="true"></span>
+        <span class="tabbar__label">경로</span>
+      </a>
+      <a class="tabbar__item" href="#/places" data-tab="places">
+        <span class="tabbar__icon" data-icon="star" aria-hidden="true"></span>
+        <span class="tabbar__label">장소</span>
+      </a>
+      <a class="tabbar__item" href="#/settings" data-tab="settings">
+        <span class="tabbar__icon" data-icon="gear" aria-hidden="true"></span>
+        <span class="tabbar__label">설정</span>
+      </a>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="./src/js/main.js"></script>
+</body>
+</html>
