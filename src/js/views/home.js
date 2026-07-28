@@ -6,6 +6,7 @@ import { planTrip } from "../core/departure.js";
 import { buildAdvice } from "../core/advice.js";
 import { buildShareText, shareText } from "../core/share.js";
 import { clearAlerts, scheduleDepartureAlerts } from "../core/notify.js";
+import { APP_VERSION, BUILD_TIME } from "../version.js";
 import {
   getHome,
   getPlace,
@@ -37,6 +38,13 @@ import {
 
 /** 세션 동안 유지되는 현재 위치 캐시 */
 let cachedOrigin = null;
+
+/** BUILD_TIME(ISO) → "2026.07.28 23:43" */
+function buildTimeLabel() {
+  const d = new Date(BUILD_TIME);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 /** 사용자가 수동으로 뒤집은 평일 방향 (null이면 시간대 기준 자동) */
 let directionOverride = null;
@@ -246,6 +254,10 @@ export async function render(root, ctx = {}) {
       ${widgetCard({ plan, weather: view.weather, destName: trip.destination.name })}
       <p class="muted" style="font-size:11.5px;font-weight:600;line-height:1.6;margin-top:8px">
         브라우저 메뉴의 &lsquo;홈 화면에 추가&rsquo;로 설치하면 이 카드가 앱 아이콘에서 바로 열립니다.
+      </p>
+
+      <p class="muted" style="font-size:11px;font-weight:600;text-align:center;margin-top:28px">
+        ReadyToGo v${escapeHtml(APP_VERSION)} (dev) · ${escapeHtml(buildTimeLabel())} 업데이트
       </p>`;
 
     tickCountdown(root, plan);
