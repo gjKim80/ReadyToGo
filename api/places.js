@@ -14,7 +14,7 @@
  *     — NAVER Developers 지역 검색(상호명 검색). 없으면 주소 검색만 동작한다.
  */
 
-import { coord, env, fail, fetchJson, handler, sendJson } from "./_lib/http.js";
+import { coord, env, fail, fetchJson, handler, requireEnv, sendJson } from "./_lib/http.js";
 
 const NCP_HOSTS = ["https://maps.apigw.ntruss.com", "https://naveropenapi.apigw.ntruss.com"];
 
@@ -115,10 +115,7 @@ async function localSearch(query) {
 export default handler(async (req, res) => {
   const id = env("NAVER_CLIENT_ID", "NAVER_MAPS_CLIENT_ID");
   const secret = env("NAVER_CLIENT_SECRET", "NAVER_MAPS_CLIENT_SECRET");
-  if (!id || !secret) {
-    fail(res, 501, "not_configured", "NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 환경변수가 없습니다");
-    return;
-  }
+  if (requireEnv(res, { NAVER_CLIENT_ID: id, NAVER_CLIENT_SECRET: secret })) return;
   const creds = { id, secret };
 
   /* ── 역지오코딩 ── */

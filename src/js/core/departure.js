@@ -120,7 +120,8 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
     label: isSubway ? "지하철" : "버스",
     icon: isSubway ? "🚇" : "🚌",
     color: itinerary.line.color,
-    live: true,
+    // ODsay 등 경로 전용 소스는 실시간 도착을 주지 않는다 — 있는 척하지 않는다
+    live: arrivals.some((a) => a.live),
     legs,
     totalSec: sum(legs),
     leaveAt,
@@ -129,7 +130,9 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
     late,
     notes: [
       `${itinerary.line.name} 배차 약 ${fmtDur(itinerary.headwaySec)}`,
-      nextArrivals[0] ? `다음 차 ${fmtDur(nextArrivals[0].inSec)} 후 · ${nextArrivals[0].crowdingLabel}` : null,
+      nextArrivals[0]
+        ? `다음 차 ${fmtDur(nextArrivals[0].inSec)} 후${nextArrivals[0].crowdingLabel ? ` · ${nextArrivals[0].crowdingLabel}` : ""}`
+        : null,
     ].filter(Boolean),
     meta: { itinerary, nextArrivals },
   };

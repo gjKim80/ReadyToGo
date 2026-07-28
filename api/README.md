@@ -8,7 +8,7 @@
 | `GET /api/directions` | NAVER Directions 5 | `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET` | 구현 완료 |
 | `GET /api/weather` | 기상청 단기예보 | `KMA_SERVICE_KEY` | 구현 완료 |
 | `GET /api/places` | NAVER Geocoding (+지역검색) | `NAVER_CLIENT_ID/SECRET` (+`NAVER_SEARCH_*`) | 구현 완료 |
-| `GET /api/transit` | — | — | 미구현(앱 내 추정으로 폴백) |
+| `GET /api/transit` | ODsay 대중교통 길찾기 | `ODSAY_API_KEY` | 구현 완료(실시간 도착 제외) |
 | `GET /api/health` | — | — | 키 설정/동작 점검용 |
 
 ## 키 발급 순서
@@ -41,10 +41,19 @@ vercel env add NAVER_SEARCH_CLIENT_ID production
 vercel env add NAVER_SEARCH_CLIENT_SECRET production
 ```
 
-### 4. 대중교통 경로
-공공데이터포털/서울시 API는 "특정 정류장의 실시간 도착"만 제공하고, 출발지→목적지
-경로 탐색은 하지 못한다. 실제 길찾기에는 ODsay 같은 별도 API가 필요하다.
-현재는 `/api/transit`이 빈 결과를 반환하고 앱이 자체 추정 로직을 사용한다.
+### 4. 대중교통 경로 (ODsay)
+1. https://lab.odsay.com 회원가입 → **API 관리** → 애플리케이션 등록
+2. **대중교통 길찾기**(`searchPubTransPathT`) 사용 설정 → API Key 복사
+3. 무료 플랜은 일 1,000회. 웹 서비스 URL 등록이 필요할 수 있다.
+
+```bash
+vercel env add ODSAY_API_KEY production
+```
+
+ODsay는 경로(승차 정류장·환승·하차 정류장)와 평균 배차간격만 주고 **실시간 도착시각은
+주지 않는다.** 그래서 도착 목록은 배차간격 기반 예정 시각이며 `live: false`로 표시되고,
+UI도 '실시간' 대신 '배차 기준 예정' 배지를 보여준다. 실시간까지 필요하면 서울 열린데이터광장
+또는 TAGO의 정류장 도착정보 API를 추가로 붙여야 한다.
 
 ## 확인
 

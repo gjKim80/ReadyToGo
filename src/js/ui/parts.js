@@ -149,21 +149,32 @@ export function planNotes(plan) {
   </p>`;
 }
 
-/** 실시간 도착 정보 스트립 (대중교통 플랜 전용) */
+/**
+ * 도착 정보 스트립 (대중교통 플랜 전용).
+ * 실시간 도착을 제공하는 소스일 때만 '실시간' 배지를 달고,
+ * 배차간격으로 계산한 예정 시각은 그렇게 표시한다.
+ */
 export function liveArrivals(plan) {
   const arrivals = plan.meta?.nextArrivals;
   if (!arrivals?.length) return "";
   const line = plan.meta.itinerary.line;
+  const isLive = arrivals.some((a) => a.live);
+
   return `
     <div class="card" style="padding:13px 14px">
       <div class="row row--between" style="margin-bottom:8px">
         <span style="font-size:13.5px;font-weight:800;color:${escapeHtml(line.color)}">${escapeHtml(line.name)}</span>
-        <span class="badge badge--live"><span class="live-dot"></span>실시간</span>
+        ${
+          isLive
+            ? `<span class="badge badge--live"><span class="live-dot"></span>실시간</span>`
+            : `<span class="badge badge--warn">배차 기준 예정</span>`
+        }
       </div>
       <div class="row" style="gap:8px;flex-wrap:wrap">
         ${arrivals
           .map(
-            (a) => `<span class="chip">${fmtDur(a.inSec)} 후 · ${escapeHtml(a.crowdingLabel)}</span>`,
+            (a) =>
+              `<span class="chip">${fmtDur(a.inSec)} 후${a.crowdingLabel ? ` · ${escapeHtml(a.crowdingLabel)}` : ""}</span>`,
           )
           .join("")}
       </div>

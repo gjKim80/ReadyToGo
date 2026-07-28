@@ -129,6 +129,7 @@ export async function getTransitItineraries(origin, destination, { now = new Dat
         {
           sx: origin.lng, sy: origin.lat,
           ex: destination.lng, ey: destination.lat,
+          walkPace,
         },
         { signal },
       );

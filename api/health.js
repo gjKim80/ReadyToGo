@@ -70,8 +70,8 @@ export default handler(async (req, res) => {
       },
       transit: {
         label: "대중교통",
-        origin: "미구현 · 앱 내 추정",
-        ready: false,
+        origin: configured.odsay ? "ODsay 길찾기 (도착시각은 배차 기준)" : "앱 내 추정",
+        ready: configured.odsay,
         keys: ["ODSAY_API_KEY"],
       },
     },

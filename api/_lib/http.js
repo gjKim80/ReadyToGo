@@ -126,3 +126,19 @@ export function env(...names) {
   }
   return null;
 }
+
+/**
+ * 필수 환경변수 중 비어 있는 것만 골라 501로 응답한다.
+ * 키를 하나씩 넣어가는 중에 "무엇이 남았는지"가 바로 보이게 하는 것이 목적이다.
+ * @param {Record<string, string|null>} required 이름 → env() 결과
+ * @returns {boolean} 응답을 보냈으면 true
+ */
+export function requireEnv(res, required) {
+  const missing = Object.entries(required)
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+  if (!missing.length) return false;
+
+  fail(res, 501, "not_configured", `${missing.join(", ")} 환경변수가 없습니다`, { missing });
+  return true;
+}

@@ -11,7 +11,7 @@
  *   → 인코딩/디코딩 키 어느 쪽을 넣어도 동작하도록 처리한다.
  */
 
-import { UpstreamError, coord, env, fail, fetchJson, handler, sendJson } from "./_lib/http.js";
+import { UpstreamError, coord, env, fail, fetchJson, handler, requireEnv, sendJson } from "./_lib/http.js";
 
 const BASE = "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0";
 const KST_OFFSET = 9 * 60 * 60 * 1000;
@@ -121,10 +121,7 @@ function unwrap(json, label) {
 
 export default handler(async (req, res) => {
   const serviceKey = env("KMA_SERVICE_KEY", "DATA_GO_KR_SERVICE_KEY");
-  if (!serviceKey) {
-    fail(res, 501, "not_configured", "KMA_SERVICE_KEY 환경변수가 없습니다");
-    return;
-  }
+  if (requireEnv(res, { KMA_SERVICE_KEY: serviceKey })) return;
 
   const at = coord(req.query, "lat", "lng");
   if (!at) {

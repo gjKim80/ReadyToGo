@@ -11,7 +11,7 @@
  *   NAVER_CLIENT_SECRET (Client Secret / API Key)
  */
 
-import { UpstreamError, env, fail, fetchJson, handler, sendJson } from "./_lib/http.js";
+import { UpstreamError, env, fail, fetchJson, handler, requireEnv, sendJson } from "./_lib/http.js";
 
 /**
  * NAVER Cloud Platform은 2025년 Maps 개편으로 REST 호스트가 이원화되어 있다.
@@ -90,10 +90,7 @@ async function callNaver(params, headers) {
 export default handler(async (req, res) => {
   const clientId = env("NAVER_CLIENT_ID", "NAVER_MAPS_CLIENT_ID");
   const clientSecret = env("NAVER_CLIENT_SECRET", "NAVER_MAPS_CLIENT_SECRET");
-  if (!clientId || !clientSecret) {
-    fail(res, 501, "not_configured", "NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 환경변수가 없습니다");
-    return;
-  }
+  if (requireEnv(res, { NAVER_CLIENT_ID: clientId, NAVER_CLIENT_SECRET: clientSecret })) return;
 
   const { start, goal, option = "trafast", cartype, fueltype } = req.query;
 
