@@ -22,7 +22,7 @@ export function loadNaverMapsSdk() {
       return;
     }
     const script = document.createElement("script");
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${encodeURIComponent(config.naverMapClientId)}&submodules=geocoder`;
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(config.naverMapClientId)}&submodules=geocoder`;
     script.async = true;
     script.onload = () => {
       if (window.naver?.maps) resolve(window.naver.maps);
