@@ -1,20 +1,35 @@
 /**
- * GET /api/transit — ODsay 대중교통 길찾기 프록시.
+ * GET /api/transit — ODsay 대중교통 길찾기 + 실시간 도착 오버레이.
  *
  * 요청: ?sx=경도&sy=위도&ex=경도&ey=위도[&walkPace=1]
  * 응답: { itineraries: [...] } — src/js/api/transit.js가 기대하는 정규화 형태
  *
- * 필요한 환경변수: ODSAY_API_KEY
- *   없으면 빈 배열을 200으로 반환하고 프런트엔드가 자체 추정 로직을 쓴다.
+ * 3단계로 합성한다:
+ *  1) ODsay: 경로(어디서 승차/환승/하차) — ODSAY_API_KEY
+ *  2) 지하철 구간: 서울 열린데이터광장 실시간 도착(역명 기준) — SEOUL_SUBWAY_API_KEY
+ *  3) 버스 구간: TAGO 좌표기반 근접정류소 조회 → 정류소별 도착예정정보 — TAGO_SERVICE_KEY
  *
- * ⚠️ ODsay는 "경로"만 제공하고 실시간 도착시각은 제공하지 않는다.
- *    따라서 도착 목록은 평균 배차간격(intervalTime)으로 만든 예정 시각이며,
- *    모두 live=false로 표시해 UI가 실시간이라고 오인하지 않게 한다.
+ * 어느 하나라도 없거나 실패하면 그 구간만 "배차간격 기반 예정"으로 폴백한다
+ * (ODsay 자체가 없으면 빈 배열을 반환해 프런트엔드가 자체 추정 로직을 쓴다).
  */
 
 import { coord, env, fail, fetchJson, handler, sendJson } from "./_lib/http.js";
 
 const ODSAY_URL = "https://api.odsay.com/v1/api/searchPubTransPathT";
+/**
+ * ODsay는 "서비스 플랫폼: URI" 방식으로 등록되어 있어 Referer 헤더로 도메인을 확인한다.
+ * 서버(Vercel)에서 호출할 때도 이 값을 등록된 URI와 일치시켜야 인증이 통과된다.
+ */
+const ODSAY_REFERER = env("PUBLIC_APP_ORIGIN") || "https://readytogo-gamma.vercel.app";
+
+const SEOUL_SUBWAY_URL = (key, station) =>
+  `http://swopenapi.seoul.go.kr/api/subway/${key}/json/realtimeStationArrival/0/10/${encodeURIComponent(station)}`;
+
+const TAGO_BASE = "http://apis.data.go.kr/1613000";
+const tagoStopsUrl = (key, lat, lng) =>
+  `${TAGO_BASE}/BusSttnInfoInqireService/getCrdntPrxmtSttnList?serviceKey=${encodeURIComponent(key)}&gpsLati=${lat}&gpsLong=${lng}&numOfRows=5&pageNo=1&_type=json`;
+const tagoArrivalUrl = (key, cityCode, nodeId) =>
+  `${TAGO_BASE}/ArvlInfoInqireService/getSttnAcctoArvlPrearngeInfoList?serviceKey=${encodeURIComponent(key)}&cityCode=${cityCode}&nodeId=${nodeId}&pageNo=1&numOfRows=30&_type=json`;
 
 /** trafficType: 1 지하철 · 2 버스 · 3 도보 */
 const SUBWAY = 1;
@@ -74,8 +89,20 @@ const BUS_TYPES = {
 const DEFAULT_HEADWAY = { subway: 300, bus: 600 };
 
 const minToSec = (m) => Math.round((Number(m) || 0) * 60);
-
 const subwayColor = (name = "") => SUBWAY_COLORS.find(([re]) => re.test(name))?.[1] || "#3D5BAB";
+
+/** data.go.kr 특유의 "결과 1건이면 배열이 아니라 객체" 응답을 배열로 정규화 */
+function tagoItems(data) {
+  const items = data?.response?.body?.items;
+  if (!items || items === "") return [];
+  const item = items.item;
+  if (!item) return [];
+  return Array.isArray(item) ? item : [item];
+}
+
+function tagoOk(data) {
+  return data?.response?.header?.resultCode === "00";
+}
 
 function lineOf(leg) {
   const lane = leg.lane?.[0] || {};
@@ -87,25 +114,94 @@ function lineOf(leg) {
   return { name: `${lane.busNo || "버스"}번`, color: type.color, kind: type.kind };
 }
 
-/**
- * 실시간 정보가 없으므로 평균 배차간격으로 도착 예정 시각을 만든다.
- * 첫 차는 "배차간격의 절반 뒤"로 두는 게 기댓값 기준으로 가장 타당하다.
- */
+/** 실시간 정보가 없을 때: 평균 배차간격으로 도착 예정 시각을 만든다(첫 차는 배차간격의 절반 뒤) */
 function scheduleArrivals(headwaySec, nowMs, count = 8) {
   const arrivals = [];
   for (let i = 0; i < count; i += 1) {
     const offset = headwaySec / 2 + headwaySec * i;
-    arrivals.push({
-      at: new Date(nowMs + offset * 1000).toISOString(),
-      live: false,
-      crowding: null,
-    });
+    arrivals.push({ at: new Date(nowMs + offset * 1000).toISOString(), live: false, crowding: null });
   }
   return arrivals;
 }
 
-/** ODsay path 하나 → 앱의 itinerary 형태 */
-function toItinerary(path, { nowMs, walkPace }) {
+/* ---------- 지하철: 서울 열린데이터광장 실시간 도착 ---------- */
+
+/**
+ * 역명으로 실시간 도착 목록을 가져온다. 상행/하행이 뒤섞여 오므로 방향을 확정하지 않고
+ * 도착이 빠른 순으로 그대로 보여준다(실제 승강장 전광판과 동일한 방식).
+ */
+async function fetchSubwayArrivals(stationName) {
+  const key = env("SEOUL_SUBWAY_API_KEY");
+  if (!key || !stationName) return null;
+
+  try {
+    const data = await fetchJson(SEOUL_SUBWAY_URL(key, stationName), { label: "서울 지하철 실시간 도착", timeoutMs: 6000 });
+    const list = data?.realtimeArrivalList;
+    if (!Array.isArray(list) || !list.length) return null;
+
+    const nowMs = Date.now();
+    return list
+      .map((t) => ({
+        at: new Date(nowMs + (Number(t.barvlDt) || 0) * 1000).toISOString(),
+        live: true,
+        crowding: null,
+        /** 승강장 전광판 문구 그대로 — 방향 확정이 안 되니 사용자가 직접 보고 판단 */
+        label: `${t.trainLineNm || ""} · ${t.arvlMsg2 || ""}`.trim(),
+      }))
+      .sort((a, b) => new Date(a.at) - new Date(b.at))
+      .slice(0, 6);
+  } catch (err) {
+    console.warn("[transit] 서울 지하철 실시간 조회 실패", err.message);
+    return null;
+  }
+}
+
+/* ---------- 버스: TAGO 좌표기반 정류소 조회 → 도착예정정보 ---------- */
+
+/**
+ * ODsay가 준 정류소 좌표/ARS번호로 TAGO의 정류소(nodeId)를 찾고, 그 정류소를 지나는
+ * 노선 중 버스번호가 같은 것의 실시간 도착예정정보를 가져온다.
+ */
+async function fetchBusArrival({ lat, lng, arsId, busNo }) {
+  const key = env("TAGO_SERVICE_KEY");
+  if (!key || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  try {
+    const stopsRes = await fetchJson(tagoStopsUrl(key, lat, lng), { label: "TAGO 근접 정류소 조회", timeoutMs: 6000 });
+    if (!tagoOk(stopsRes)) return null;
+    const stops = tagoItems(stopsRes);
+    if (!stops.length) return null;
+
+    // ARS(표지판) 번호가 정확히 일치하는 정류소를 우선하고, 없으면 가장 가까운 정류소를 쓴다
+    const byArs = arsId ? stops.find((s) => String(s.nodeno) === String(arsId)) : null;
+    const stop = byArs || stops[0];
+
+    const arrivalRes = await fetchJson(tagoArrivalUrl(key, stop.citycode, stop.nodeid), {
+      label: "TAGO 정류소 도착예정정보",
+      timeoutMs: 6000,
+    });
+    if (!tagoOk(arrivalRes)) return null;
+
+    const routes = tagoItems(arrivalRes);
+    const digitsOnly = (s) => String(s || "").replace(/\D/g, "");
+    const match = routes.find((r) => digitsOnly(r.routeno) === digitsOnly(busNo));
+    if (!match) return null;
+
+    return {
+      at: new Date(Date.now() + (Number(match.arrtime) || 0) * 1000).toISOString(),
+      live: true,
+      crowding: null,
+      stationsAway: match.arrprevstationcnt != null ? Number(match.arrprevstationcnt) : null,
+    };
+  } catch (err) {
+    console.warn("[transit] TAGO 버스 실시간 조회 실패", err.message);
+    return null;
+  }
+}
+
+/* ---------- ODsay 경로 → 앱 itinerary 정규화 ---------- */
+
+async function toItinerary(path, { nowMs, walkPace }) {
   const subPaths = path.subPath || [];
   const legs = subPaths.filter((s) => s.trafficType === SUBWAY || s.trafficType === BUS);
   if (!legs.length) return null;
@@ -123,9 +219,34 @@ function toItinerary(path, { nowMs, walkPace }) {
   const rideSec = subPaths.slice(firstIdx, lastIdx + 1).reduce((acc, s) => acc + minToSec(s.sectionTime), 0);
 
   const type = legs[0].trafficType === SUBWAY ? "subway" : "bus";
-  const headwaySec = legs[0].intervalTime
-    ? minToSec(legs[0].intervalTime)
-    : DEFAULT_HEADWAY[type];
+  const headwaySec = legs[0].intervalTime ? minToSec(legs[0].intervalTime) : DEFAULT_HEADWAY[type];
+
+  // ── 실시간 도착 오버레이 (있으면 사용, 없으면 배차간격 기반 예정으로 폴백)
+  let arrivals = null;
+  let live = false;
+
+  if (type === "subway") {
+    const real = await fetchSubwayArrivals(legs[0].startName);
+    if (real?.length) {
+      arrivals = real;
+      live = true;
+    }
+  } else {
+    const real = await fetchBusArrival({
+      lat: legs[0].startY,
+      lng: legs[0].startX,
+      arsId: legs[0].startArsID,
+      busNo: legs[0].lane?.[0]?.busNo,
+    });
+    if (real) {
+      // TAGO는 노선당 "다음 한 대"만 준다 — 그 뒤는 배차간격으로 이어붙인다
+      const rest = scheduleArrivals(headwaySec, new Date(real.at).getTime(), 5).map((a) => ({ ...a, live: false }));
+      arrivals = [real, ...rest];
+      live = true;
+    }
+  }
+
+  if (!arrivals) arrivals = scheduleArrivals(headwaySec, nowMs);
 
   return {
     id: type,
@@ -136,11 +257,11 @@ function toItinerary(path, { nowMs, walkPace }) {
     rideSec,
     transfers: legs.length - 1,
     headwaySec,
-    /** 도착 시각은 실시간이 아니라 배차간격 기반 예정값이다 */
-    arrivals: scheduleArrivals(headwaySec, nowMs),
-    scheduled: true,
+    arrivals,
+    live,
+    scheduled: !live,
     headwayEstimated: !legs[0].intervalTime,
-    source: "odsay",
+    source: live ? (type === "subway" ? "seoul_subway" : "tago_bus") : "odsay_headway",
     totalTimeSec: minToSec(path.info?.totalTime),
     fare: path.info?.payment ?? null,
     stationCount: legs.reduce((acc, l) => acc + (l.stationCount || 0), 0),
@@ -179,7 +300,11 @@ export default handler(async (req, res) => {
     lang: "0",
   });
 
-  const data = await fetchJson(`${ODSAY_URL}?${qs}`, { label: "ODsay 대중교통 길찾기", timeoutMs: 9000 });
+  const data = await fetchJson(`${ODSAY_URL}?${qs}`, {
+    label: "ODsay 대중교통 길찾기",
+    timeoutMs: 9000,
+    headers: { Referer: ODSAY_REFERER },
+  });
 
   // ODsay는 오류도 HTTP 200으로 주고 error 객체를 실어 보낸다
   if (data.error) {
@@ -194,9 +319,9 @@ export default handler(async (req, res) => {
   }
 
   const nowMs = Date.now();
-  const converted = (data.result?.path || [])
-    .map((p) => toItinerary(p, { nowMs, walkPace }))
-    .filter(Boolean);
+  const converted = (
+    await Promise.all((data.result?.path || []).map((p) => toItinerary(p, { nowMs, walkPace })))
+  ).filter(Boolean);
 
   // 앱은 지하철/버스 후보를 각각 하나씩 보여준다(plan id 중복 방지). 소요시간이 짧은 쪽을 채택.
   const best = new Map();
@@ -213,6 +338,6 @@ export default handler(async (req, res) => {
       source: "odsay",
       searched: converted.length,
     },
-    { cacheSec: 120 },
+    { cacheSec: 30 }, // 실시간 도착이 섞이므로 이전(120s)보다 짧게 캐시
   );
 });

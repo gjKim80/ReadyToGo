@@ -35,12 +35,25 @@ async function probe(base, path, query) {
   }
 }
 
+/** 실시간 도착 API 2개는 /api/transit을 거치지 않고 직접 두드려 원인(키/IP차단 등)을 바로 구분한다 */
+async function probeDirect(url, { started = Date.now() } = {}) {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const text = await res.text();
+    return { ok: res.ok, status: res.status, ms: Date.now() - started, snippet: text.slice(0, 200) };
+  } catch (err) {
+    return { ok: false, status: 0, ms: Date.now() - started, message: err.message };
+  }
+}
+
 export default handler(async (req, res) => {
   const configured = {
     naver: Boolean(env("NAVER_CLIENT_ID", "NAVER_MAPS_CLIENT_ID") && env("NAVER_CLIENT_SECRET", "NAVER_MAPS_CLIENT_SECRET")),
     kma: Boolean(env("KMA_SERVICE_KEY", "DATA_GO_KR_SERVICE_KEY")),
     naverSearch: Boolean(env("NAVER_SEARCH_CLIENT_ID") && env("NAVER_SEARCH_CLIENT_SECRET")),
     odsay: Boolean(env("ODSAY_API_KEY")),
+    seoulSubway: Boolean(env("SEOUL_SUBWAY_API_KEY")),
+    tago: Boolean(env("TAGO_SERVICE_KEY")),
   };
 
   const status = {
@@ -69,10 +82,24 @@ export default handler(async (req, res) => {
         keys: ["NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET", "NAVER_SEARCH_CLIENT_ID", "NAVER_SEARCH_CLIENT_SECRET"],
       },
       transit: {
-        label: "대중교통",
-        origin: configured.odsay ? "ODsay 길찾기 (도착시각은 배차 기준)" : "앱 내 추정",
+        label: "대중교통 경로",
+        origin: "ODsay 길찾기",
         ready: configured.odsay,
         keys: ["ODSAY_API_KEY"],
+      },
+      transitSubway: {
+        label: "지하철 실시간 도착",
+        origin: "서울 열린데이터광장",
+        ready: configured.odsay && configured.seoulSubway,
+        optional: true,
+        keys: ["ODSAY_API_KEY", "SEOUL_SUBWAY_API_KEY"],
+      },
+      transitBus: {
+        label: "버스 실시간 도착",
+        origin: "TAGO(공공데이터포털)",
+        ready: configured.odsay && configured.tago,
+        optional: true,
+        keys: ["ODSAY_API_KEY", "TAGO_SERVICE_KEY"],
       },
     },
     allowedOrigins: process.env.ALLOWED_ORIGINS || "*",
@@ -86,12 +113,26 @@ export default handler(async (req, res) => {
   const proto = req.headers["x-forwarded-proto"] || "https";
   const base = `${proto}://${req.headers.host}`;
 
-  const [directions, weather, places, transit] = await Promise.all([
+  const seoulKey = env("SEOUL_SUBWAY_API_KEY");
+  const tagoKey = env("TAGO_SERVICE_KEY");
+
+  const [directions, weather, places, transit, subwayDirect, busDirect] = await Promise.all([
     probe(base, "directions", SAMPLE.directions),
     probe(base, "weather", SAMPLE.weather),
     probe(base, "places", SAMPLE.places),
     probe(base, "transit", SAMPLE.transit),
+    seoulKey
+      ? probeDirect(`http://swopenapi.seoul.go.kr/api/subway/${seoulKey}/json/realtimeStationArrival/0/5/${encodeURIComponent("서울역")}`)
+      : Promise.resolve({ ok: false, message: "SEOUL_SUBWAY_API_KEY 없음" }),
+    tagoKey
+      ? probeDirect(
+          `http://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList?serviceKey=${encodeURIComponent(tagoKey)}&gpsLati=37.5665&gpsLong=126.9780&numOfRows=3&pageNo=1&_type=json`,
+        )
+      : Promise.resolve({ ok: false, message: "TAGO_SERVICE_KEY 없음" }),
   ]);
 
-  sendJson(res, 200, { ...status, probe: { directions, weather, places, transit } });
+  sendJson(res, 200, {
+    ...status,
+    probe: { directions, weather, places, transit, transitSubwayDirect: subwayDirect, transitBusDirect: busDirect },
+  });
 });

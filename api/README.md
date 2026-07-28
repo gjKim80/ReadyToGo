@@ -8,7 +8,7 @@
 | `GET /api/directions` | NAVER Directions 5 | `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET` | 구현 완료 |
 | `GET /api/weather` | 기상청 단기예보 | `KMA_SERVICE_KEY` | 구현 완료 |
 | `GET /api/places` | NAVER Geocoding (+지역검색) | `NAVER_CLIENT_ID/SECRET` (+`NAVER_SEARCH_*`) | 구현 완료 |
-| `GET /api/transit` | ODsay 대중교통 길찾기 | `ODSAY_API_KEY` | 구현 완료(실시간 도착 제외) |
+| `GET /api/transit` | ODsay 대중교통 길찾기 + 서울 지하철/TAGO 버스 실시간 오버레이 | `ODSAY_API_KEY` (+선택 `SEOUL_SUBWAY_API_KEY`, `TAGO_SERVICE_KEY`) | 구현 완료 |
 | `GET /api/health` | — | — | 키 설정/동작 점검용 |
 
 ## 키 발급 순서
@@ -50,10 +50,27 @@ vercel env add NAVER_SEARCH_CLIENT_SECRET production
 vercel env add ODSAY_API_KEY production
 ```
 
-ODsay는 경로(승차 정류장·환승·하차 정류장)와 평균 배차간격만 주고 **실시간 도착시각은
-주지 않는다.** 그래서 도착 목록은 배차간격 기반 예정 시각이며 `live: false`로 표시되고,
-UI도 '실시간' 대신 '배차 기준 예정' 배지를 보여준다. 실시간까지 필요하면 서울 열린데이터광장
-또는 TAGO의 정류장 도착정보 API를 추가로 붙여야 한다.
+ODsay는 경로(승차 정류장·환승·하차 정류장)만 주고 **실시간 도착시각은 주지 않는다.**
+아래 두 키가 없으면 도착 목록은 배차간격 기반 예정 시각(`live: false`)으로 폴백한다.
+
+### 5. 지하철 실시간 도착 (서울 열린데이터광장)
+1. https://data.seoul.go.kr 회원가입 → **실시간 지하철 인증키 신청** (일반 인증키 아님, 별도 항목)
+2. ODsay가 준 승차역 이름으로 조회하므로 **서울 지하철에서만** 동작한다(수도권 타 지자체 역은 폴백).
+
+```bash
+vercel env add SEOUL_SUBWAY_API_KEY production
+```
+
+### 6. 버스 실시간 도착 (TAGO, 공공데이터포털)
+1. https://www.data.go.kr 에서 "국토교통부_(TAGO)_버스도착정보"와 **"국토교통부_(TAGO)_버스정류소정보"
+   둘 다** 활용신청한다 — 좌표로 정류소(nodeId)를 찾은 뒤 그 정류소의 도착정보를 조회하는 2단계라
+   두 데이터셋이 모두 승인되어 있어야 한다.
+2. 승인 상태는 마이페이지 > 개발계정 > **활용신청 현황**에서 확인. "승인" 전에는 호출이
+   `403 Forbidden`으로 막힌다(일부 TAGO 데이터셋은 자동승인이 아니라 며칠 걸릴 수 있다).
+
+```bash
+vercel env add TAGO_SERVICE_KEY production
+```
 
 ## 확인
 
