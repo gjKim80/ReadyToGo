@@ -86,7 +86,8 @@ export async function searchPlaces(keyword, { near, signal } = {}) {
         { query: keyword, lat: near?.lat, lng: near?.lng },
         { signal },
       );
-      return data.items || [];
+      // NAVER_SEARCH_* 키가 없으면 서버는 지역검색 없이 200 + 빈 배열을 준다 — 이때도 내장 목록으로 폴백
+      if (data.items?.length) return data.items;
     } catch (err) {
       console.warn("[places] 프록시 실패 — 목 데이터로 폴백", err);
     }
