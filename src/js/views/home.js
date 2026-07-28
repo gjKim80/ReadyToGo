@@ -25,7 +25,6 @@ import {
   planNotes,
   tickCountdown,
   weatherCard,
-  widgetCard,
 } from "../ui/parts.js";
 import {
   atTime,
@@ -250,11 +249,7 @@ export async function render(root, ctx = {}) {
         ${view.plans.map((p) => optionCard(p, { selected: p.id === view.selectedId })).join("")}
       </div>
 
-      <p class="section-title" style="margin-top:22px">홈 화면 위젯 미리보기</p>
-      ${widgetCard({ plan, weather: view.weather, destName: trip.destination.name })}
-      <p class="muted" style="font-size:11.5px;font-weight:600;line-height:1.6;margin-top:8px">
-        브라우저 메뉴의 &lsquo;홈 화면에 추가&rsquo;로 설치하면 이 카드가 앱 아이콘에서 바로 열립니다.
-      </p>
+      <!-- 홈 화면 위젯 미리보기: 실제 OS 위젯 연동 전까지 노출하지 않음 (widgetCard는 ui/parts.js에 남겨둠) -->
 
       <p class="muted" style="font-size:11px;font-weight:600;text-align:center;margin-top:28px">
         ReadyToGo v${escapeHtml(APP_VERSION)} (dev) · ${escapeHtml(buildTimeLabel())} 업데이트
