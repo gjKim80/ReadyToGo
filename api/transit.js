@@ -7,7 +7,10 @@
  * 3단계로 합성한다:
  *  1) ODsay: 경로(어디서 승차/환승/하차) — ODSAY_API_KEY
  *  2) 지하철 구간: 서울 열린데이터광장 실시간 도착(역명 기준) — SEOUL_SUBWAY_API_KEY
- *  3) 버스 구간: TAGO 좌표기반 근접정류소 조회 → 정류소별 도착예정정보 — TAGO_SERVICE_KEY
+ *  3) 버스 구간: 서울시 버스운행정보(ws.bus.go.kr) 노선 검색 → 노선별 도착정보 — TAGO_SERVICE_KEY
+ *     (data.go.kr 카탈로그명은 "TAGO"가 아니라 "서울특별시_버스도착정보조회 서비스"이지만,
+ *      실제 게이트웨이가 국토교통부 TAGO(apis.data.go.kr)가 아닌 서울시 자체 ws.bus.go.kr이라
+ *      환경변수명만 유지하고 호출 대상은 서울시 게이트웨이로 맞춘다)
  *
  * 어느 하나라도 없거나 실패하면 그 구간만 "배차간격 기반 예정"으로 폴백한다
  * (ODsay 자체가 없으면 빈 배열을 반환해 프런트엔드가 자체 추정 로직을 쓴다).
@@ -25,11 +28,11 @@ const ODSAY_REFERER = env("PUBLIC_APP_ORIGIN") || "https://readytogo-gamma.verce
 const SEOUL_SUBWAY_URL = (key, station) =>
   `http://swopenapi.seoul.go.kr/api/subway/${key}/json/realtimeStationArrival/0/10/${encodeURIComponent(station)}`;
 
-const TAGO_BASE = "http://apis.data.go.kr/1613000";
-const tagoStopsUrl = (key, lat, lng) =>
-  `${TAGO_BASE}/BusSttnInfoInqireService/getCrdntPrxmtSttnList?serviceKey=${encodeURIComponent(key)}&gpsLati=${lat}&gpsLong=${lng}&numOfRows=5&pageNo=1&_type=json`;
-const tagoArrivalUrl = (key, cityCode, nodeId) =>
-  `${TAGO_BASE}/ArvlInfoInqireService/getSttnAcctoArvlPrearngeInfoList?serviceKey=${encodeURIComponent(key)}&cityCode=${cityCode}&nodeId=${nodeId}&pageNo=1&numOfRows=30&_type=json`;
+const SEOUL_BUS_BASE = "http://ws.bus.go.kr/api/rest";
+const seoulBusRouteSearchUrl = (key, keyword) =>
+  `${SEOUL_BUS_BASE}/busRouteInfo/getBusRouteList?serviceKey=${encodeURIComponent(key)}&strSrch=${encodeURIComponent(keyword)}&resultType=json`;
+const seoulBusArrivalByRouteUrl = (key, busRouteId) =>
+  `${SEOUL_BUS_BASE}/arrive/getArrInfoByRouteAll?serviceKey=${encodeURIComponent(key)}&busRouteId=${busRouteId}&resultType=json`;
 
 /** trafficType: 1 지하철 · 2 버스 · 3 도보 */
 const SUBWAY = 1;
@@ -91,17 +94,14 @@ const DEFAULT_HEADWAY = { subway: 300, bus: 600 };
 const minToSec = (m) => Math.round((Number(m) || 0) * 60);
 const subwayColor = (name = "") => SUBWAY_COLORS.find(([re]) => re.test(name))?.[1] || "#3D5BAB";
 
-/** data.go.kr 특유의 "결과 1건이면 배열이 아니라 객체" 응답을 배열로 정규화 */
-function tagoItems(data) {
-  const items = data?.response?.body?.items;
-  if (!items || items === "") return [];
-  const item = items.item;
-  if (!item) return [];
-  return Array.isArray(item) ? item : [item];
+/** ws.bus.go.kr 응답: { msgHeader:{headerCd,headerMsg}, msgBody:{itemList} } — 1건이면 배열이 아닐 수 있다 */
+function seoulBusOk(data) {
+  return String(data?.msgHeader?.headerCd) === "0";
 }
-
-function tagoOk(data) {
-  return data?.response?.header?.resultCode === "00";
+function seoulBusItems(data) {
+  const list = data?.msgBody?.itemList;
+  if (!list) return [];
+  return Array.isArray(list) ? list : [list];
 }
 
 function lineOf(leg) {
@@ -156,45 +156,52 @@ async function fetchSubwayArrivals(stationName) {
   }
 }
 
-/* ---------- 버스: TAGO 좌표기반 정류소 조회 → 도착예정정보 ---------- */
+/* ---------- 버스: 서울시 버스운행정보(ws.bus.go.kr) ---------- */
+
+/** 버스번호로 검색해 정확히 일치하는 노선의 busRouteId를 찾는다 */
+async function findSeoulBusRouteId(key, busNo) {
+  const data = await fetchJson(seoulBusRouteSearchUrl(key, busNo), { label: "서울 버스 노선 검색", timeoutMs: 6000 });
+  if (!seoulBusOk(data)) return null;
+  const routes = seoulBusItems(data);
+  const exact = routes.find((r) => String(r.busRouteNm) === String(busNo));
+  return (exact || routes[0])?.busRouteId ?? null;
+}
 
 /**
- * ODsay가 준 정류소 좌표/ARS번호로 TAGO의 정류소(nodeId)를 찾고, 그 정류소를 지나는
- * 노선 중 버스번호가 같은 것의 실시간 도착예정정보를 가져온다.
+ * ODsay가 준 버스번호로 노선ID를 찾고, 그 노선의 전체 정류소별 도착정보 중
+ * ODsay의 ARS(표지판) 번호와 일치하는 정류소를 골라 실시간 도착을 가져온다.
  */
-async function fetchBusArrival({ lat, lng, arsId, busNo }) {
+async function fetchBusArrival({ arsId, busNo }) {
   const key = env("TAGO_SERVICE_KEY");
-  if (!key || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (!key || !busNo) return null;
 
   try {
-    const stopsRes = await fetchJson(tagoStopsUrl(key, lat, lng), { label: "TAGO 근접 정류소 조회", timeoutMs: 6000 });
-    if (!tagoOk(stopsRes)) return null;
-    const stops = tagoItems(stopsRes);
-    if (!stops.length) return null;
+    const busRouteId = await findSeoulBusRouteId(key, busNo);
+    if (!busRouteId) return null;
 
-    // ARS(표지판) 번호가 정확히 일치하는 정류소를 우선하고, 없으면 가장 가까운 정류소를 쓴다
-    const byArs = arsId ? stops.find((s) => String(s.nodeno) === String(arsId)) : null;
-    const stop = byArs || stops[0];
-
-    const arrivalRes = await fetchJson(tagoArrivalUrl(key, stop.citycode, stop.nodeid), {
-      label: "TAGO 정류소 도착예정정보",
+    const arrivalRes = await fetchJson(seoulBusArrivalByRouteUrl(key, busRouteId), {
+      label: "서울 버스 노선별 도착정보",
       timeoutMs: 6000,
     });
-    if (!tagoOk(arrivalRes)) return null;
+    if (!seoulBusOk(arrivalRes)) return null;
 
-    const routes = tagoItems(arrivalRes);
-    const digitsOnly = (s) => String(s || "").replace(/\D/g, "");
-    const match = routes.find((r) => digitsOnly(r.routeno) === digitsOnly(busNo));
-    if (!match) return null;
+    const stops = seoulBusItems(arrivalRes);
+    const match = arsId ? stops.find((s) => String(s.arsId) === String(arsId)) : null;
+    const stop = match || stops[0];
+    if (!stop) return null;
+
+    // arrmsg1가 "운행종료"/"기점출발대기" 등 비수치 상태를 담을 때는 exps1이 의미 없다
+    const secs = Number(stop.exps1 ?? stop.traTime1);
+    if (!Number.isFinite(secs) || secs <= 0) return null;
 
     return {
-      at: new Date(Date.now() + (Number(match.arrtime) || 0) * 1000).toISOString(),
+      at: new Date(Date.now() + secs * 1000).toISOString(),
       live: true,
       crowding: null,
-      stationsAway: match.arrprevstationcnt != null ? Number(match.arrprevstationcnt) : null,
+      label: stop.arrmsg1 || null,
     };
   } catch (err) {
-    console.warn("[transit] TAGO 버스 실시간 조회 실패", err.message);
+    console.warn("[transit] 서울 버스 실시간 조회 실패", err.message);
     return null;
   }
 }
@@ -233,13 +240,11 @@ async function toItinerary(path, { nowMs, walkPace }) {
     }
   } else {
     const real = await fetchBusArrival({
-      lat: legs[0].startY,
-      lng: legs[0].startX,
       arsId: legs[0].startArsID,
       busNo: legs[0].lane?.[0]?.busNo,
     });
     if (real) {
-      // TAGO는 노선당 "다음 한 대"만 준다 — 그 뒤는 배차간격으로 이어붙인다
+      // 노선당 "다음 한 대"만 오므로 그 뒤는 배차간격으로 이어붙인다
       const rest = scheduleArrivals(headwaySec, new Date(real.at).getTime(), 5).map((a) => ({ ...a, live: false }));
       arrivals = [real, ...rest];
       live = true;

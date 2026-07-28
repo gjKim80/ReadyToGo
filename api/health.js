@@ -96,7 +96,7 @@ export default handler(async (req, res) => {
       },
       transitBus: {
         label: "버스 실시간 도착",
-        origin: "TAGO(공공데이터포털)",
+        origin: "서울시 버스운행정보(ws.bus.go.kr)",
         ready: configured.odsay && configured.tago,
         optional: true,
         keys: ["ODSAY_API_KEY", "TAGO_SERVICE_KEY"],
@@ -126,7 +126,7 @@ export default handler(async (req, res) => {
       : Promise.resolve({ ok: false, message: "SEOUL_SUBWAY_API_KEY 없음" }),
     tagoKey
       ? probeDirect(
-          `http://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList?serviceKey=${encodeURIComponent(tagoKey)}&gpsLati=37.5665&gpsLong=126.9780&numOfRows=3&pageNo=1&_type=json`,
+          `http://ws.bus.go.kr/api/rest/busRouteInfo/getBusRouteList?serviceKey=${encodeURIComponent(tagoKey)}&strSrch=${encodeURIComponent("421")}&resultType=json`,
         )
       : Promise.resolve({ ok: false, message: "TAGO_SERVICE_KEY 없음" }),
   ]);
