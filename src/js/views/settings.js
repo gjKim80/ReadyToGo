@@ -73,7 +73,7 @@ export async function render(root, ctx = {}) {
               ${escapeHtml(s.label)}
               <span class="muted" style="font-weight:600">· ${escapeHtml(s.origin)}</span>
             </span>
-            <span class="badge ${ok ? "badge--ok" : "badge--warn"}">${ok ? "실 API" : "목 데이터"}</span>
+            <span class="badge ${ok ? "badge--ok" : "badge--warn"}">${ok ? "키 설정됨" : "목 데이터"}</span>
           </div>`;
       })
       .join("");
