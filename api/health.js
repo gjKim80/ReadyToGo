@@ -7,7 +7,7 @@
  * 키를 하나씩 넣어가며 진행할 때 이 엔드포인트로 단계별 검증을 한다.
  */
 
-import { env, handler, sendJson } from "./_lib/http.js";
+import { env, fail, handler, sendJson } from "./_lib/http.js";
 
 /** 서울시청 → 강남역 (프로브용 고정 좌표) */
 const SAMPLE = {
@@ -107,6 +107,14 @@ export default handler(async (req, res) => {
 
   if (!req.query.probe) {
     sendJson(res, 200, status);
+    return;
+  }
+
+  // probe는 우리 서버가 실제로 외부 API를 호출한다(= 남이 호출량을 소진시킬 수 있다) —
+  // 관리자 토큰이 맞을 때만 실행한다. 기본 status는 위에서 이미 공개로 응답 가능하게 둔다.
+  const probeToken = env("HEALTH_PROBE_TOKEN");
+  if (!probeToken || req.query.token !== probeToken) {
+    fail(res, 401, "unauthorized", "probe=1 에는 관리자 토큰(?token=)이 필요합니다");
     return;
   }
 
