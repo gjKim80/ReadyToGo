@@ -1,0 +1,11 @@
+{
+  "name": "readytogo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ReadyToGo — 스마트 출발 안내 PWA (정적 프런트 + Vercel 서버리스 API 프록시)",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  }
+}

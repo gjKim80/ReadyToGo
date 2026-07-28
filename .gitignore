@@ -1,3 +1,12 @@
 .claude/settings.local.json
 .DS_Store
 Thumbs.db
+
+# Vercel
+.vercel
+node_modules/
+
+# 로컬 환경변수 (API 키) — 절대 커밋 금지
+.env*
+# 단, 키가 없는 템플릿은 커밋한다
+!.env.example

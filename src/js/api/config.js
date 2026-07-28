@@ -10,9 +10,21 @@
  *    NAVER Maps JS SDK(지도 렌더링)만 브라우저에서 직접 로드 가능하다.
  */
 
+/**
+ * 배포 전 프록시 주소를 바꿔 테스트할 수 있는 런타임 오버라이드.
+ * 콘솔에서 `localStorage.setItem("rtg:proxyBase", "https://xxx.vercel.app/api")` 후 새로고침.
+ */
+const proxyOverride = (() => {
+  try {
+    return localStorage.getItem("rtg:proxyBase") || "";
+  } catch {
+    return "";
+  }
+})();
+
 export const config = {
-  /** 서버 프록시 base URL 예: "https://api.example.com/rtg" — 비어 있으면 목 모드 */
-  proxyBase: "",
+  /** 서버 프록시 base URL 예: "https://readytogo.vercel.app/api" — 비어 있으면 목 모드 */
+  proxyBase: proxyOverride || "",
 
   /** NAVER Maps JS SDK client id. 있으면 실지도, 없으면 내장 Flat 2D 지도 사용 */
   naverMapClientId: "hyn5shzf4e",
