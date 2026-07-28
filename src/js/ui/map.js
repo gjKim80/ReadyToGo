@@ -7,6 +7,8 @@
  * 이 모듈 대신 실제 SDK를 붙이면 된다 (동일한 onChange 인터페이스).
  */
 
+import { config } from "../api/config.js";
+import { loadNaverMapsSdk } from "../api/naversdk.js";
 import { seededRandom } from "../util.js";
 
 const METERS_PER_DEG_LAT = 111320;
@@ -20,7 +22,111 @@ const readVar = (name, fallback) => {
   return v || fallback;
 };
 
+/** naverMapClientId 설정 여부에 따라 실제 NAVER 지도 또는 내장 Flat 2D 지도를 반환한다. */
 export function createMap(container, options = {}) {
+  return config.naverMapClientId
+    ? createNaverMap(container, options)
+    : createCanvasMap(container, options);
+}
+
+/**
+ * 실제 NAVER Maps SDK 렌더러.
+ * SDK 로드는 비동기이므로, 로드 완료 전 호출된 메서드는 큐에 쌓아뒀다가 준비되면 실행한다
+ * (호출부는 createMap()이 동기적으로 완성된 핸들을 반환한다고 가정하므로).
+ */
+function createNaverMap(container, options = {}) {
+  const {
+    center = { lat: 37.5665, lng: 126.978 },
+    draggable = true,
+    onChange = null,
+    onChangeEnd = null,
+  } = options;
+
+  let map = null;
+  let markers = [];
+  let polyline = null;
+  let currentCenter = { ...center };
+  let queue = [];
+  let destroyed = false;
+
+  loadNaverMapsSdk()
+    .then((maps) => {
+      if (destroyed) return;
+      map = new maps.Map(container, {
+        center: new maps.LatLng(center.lat, center.lng),
+        zoom: 16,
+        draggable,
+        scaleControl: false,
+        mapDataControl: false,
+      });
+
+      maps.Event.addListener(map, "center_changed", () => {
+        const c = map.getCenter();
+        currentCenter = { lat: c.lat(), lng: c.lng() };
+        onChange?.({ ...currentCenter });
+      });
+      maps.Event.addListener(map, "dragend", () => onChangeEnd?.({ ...currentCenter }));
+
+      queue.forEach((fn) => fn(maps));
+      queue = [];
+    })
+    .catch((err) => console.warn("[navermap] 로드 실패 — 지도를 표시할 수 없습니다", err));
+
+  function run(fn) {
+    if (map) fn(window.naver.maps);
+    else queue.push(fn);
+  }
+
+  return {
+    get center() {
+      return { ...currentCenter };
+    },
+    setCenter(coord) {
+      currentCenter = { ...coord };
+      run((maps) => map.setCenter(new maps.LatLng(coord.lat, coord.lng)));
+    },
+    setRoute(path) {
+      run((maps) => {
+        polyline?.setMap(null);
+        if (!path?.length) return;
+        polyline = new maps.Polyline({
+          map,
+          path: path.map(([lat, lng]) => new maps.LatLng(lat, lng)),
+          strokeColor: "#1B64DA",
+          strokeWeight: 5,
+          strokeLineCap: "round",
+          strokeLineJoin: "round",
+        });
+      });
+    },
+    setMarkers(list) {
+      run((maps) => {
+        markers.forEach((m) => m.setMap(null));
+        markers = (list || []).map(
+          (m) => new maps.Marker({ position: new maps.LatLng(m.lat, m.lng), map, title: m.label || "" }),
+        );
+      });
+    },
+    fit(a, b, padding = 40) {
+      run((maps) => {
+        const bounds = new maps.LatLngBounds(
+          new maps.LatLng(Math.min(a.lat, b.lat), Math.min(a.lng, b.lng)),
+          new maps.LatLng(Math.max(a.lat, b.lat), Math.max(a.lng, b.lng)),
+        );
+        map.fitBounds(bounds, { top: padding, right: padding, bottom: padding, left: padding });
+      });
+    },
+    redraw() {},
+    destroy() {
+      destroyed = true;
+      markers.forEach((m) => m.setMap(null));
+      polyline?.setMap(null);
+      map = null;
+    },
+  };
+}
+
+function createCanvasMap(container, options = {}) {
   const {
     center = { lat: 37.5665, lng: 126.978 },
     metersPerPixel = 2.6,

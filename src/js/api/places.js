@@ -4,6 +4,7 @@
  */
 
 import { config, isMock, proxyGet } from "./config.js";
+import { reverseGeocodeNaver } from "./naversdk.js";
 import { haversine, seededInt, sleep } from "../util.js";
 
 /** 목 POI 데이터셋 (서울/수도권 주요 지점) */
@@ -118,6 +119,15 @@ export async function reverseGeocode(coord, { signal } = {}) {
       if (data.address) return data;
     } catch (err) {
       console.warn("[places] 역지오코딩 실패 — 목으로 폴백", err);
+    }
+  }
+
+  // 서버 프록시가 없어도 NAVER Client ID만 있으면 geocoder 서브모듈로 직접 호출 가능
+  if (config.naverMapClientId) {
+    try {
+      return await reverseGeocodeNaver(coord);
+    } catch (err) {
+      console.warn("[places] NAVER 역지오코딩 실패 — 목으로 폴백", err);
     }
   }
 

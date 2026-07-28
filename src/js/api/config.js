@@ -15,7 +15,7 @@ export const config = {
   proxyBase: "",
 
   /** NAVER Maps JS SDK client id. 있으면 실지도, 없으면 내장 Flat 2D 지도 사용 */
-  naverMapClientId: "",
+  naverMapClientId: "hyn5shzf4e",
 
   endpoints: {
     weather: "/weather", // 기상청 단기예보(초단기실황+단기예보) 프록시

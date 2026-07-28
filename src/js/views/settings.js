@@ -120,16 +120,29 @@ export async function render(root, ctx = {}) {
       <p class="section-title" style="margin-top:20px">데이터 연동</p>
       <div class="card">
         <div class="row row--between">
-          <span style="font-size:14.5px;font-weight:700">API 모드</span>
+          <span style="font-size:14.5px;font-weight:700">날씨 · 대중교통 · 자차 경로</span>
           <span class="badge ${isMock() ? "badge--warn" : "badge--ok"}">${isMock() ? "목 데이터" : "실 API"}</span>
         </div>
         <p class="muted" style="font-size:12px;font-weight:600;line-height:1.6;margin-top:10px">
           ${
             isMock()
-              ? `기상청·공공데이터포털·NAVER API 키가 없어 결정론적 샘플 데이터로 동작 중입니다.
+              ? `기상청·공공데이터포털·NAVER Directions는 서버 프록시가 필요합니다.
                  <code>src/js/api/config.js</code>의 <code>proxyBase</code>에 서버 프록시 주소를 넣으면
                  실시간 데이터로 전환됩니다.`
               : `프록시: <code>${escapeHtml(config.proxyBase)}</code>`
+          }
+        </p>
+        <div class="row row--between" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--c-line)">
+          <span style="font-size:14.5px;font-weight:700">지도 · 핀 위치 → 주소</span>
+          <span class="badge ${config.naverMapClientId ? "badge--ok" : "badge--warn"}">
+            ${config.naverMapClientId ? "NAVER 지도" : "내장 Flat 2D"}
+          </span>
+        </div>
+        <p class="muted" style="font-size:12px;font-weight:600;line-height:1.6;margin-top:10px">
+          ${
+            config.naverMapClientId
+              ? `Client ID가 설정되어 실제 NAVER 지도와 Reverse Geocoding을 사용 중입니다(서버 프록시 불필요).`
+              : `Client ID가 없어 내장 캔버스 지도로 대체 동작 중입니다.`
           }
         </p>
         <label class="field" style="margin-top:12px">
