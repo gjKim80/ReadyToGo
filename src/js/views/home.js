@@ -22,9 +22,9 @@ import {
   adviceBanners,
   approachLine,
   countdownBlock,
+  groupedOptionList,
   legsList,
   liveArrivals,
-  optionCard,
   planNotes,
   tickCountdown,
   weatherCard,
@@ -273,10 +273,7 @@ export async function render(root, ctx = {}) {
           : ""
       }
 
-      <p class="section-title" style="margin-top:22px">다른 이동수단</p>
-      <div class="stack">
-        ${view.plans.map((p) => optionCard(p, { selected: p.id === view.selectedId })).join("")}
-      </div>
+      ${groupedOptionList(view.plans, view.selectedId)}
 
       <!-- 홈 화면 위젯 미리보기: 실제 OS 위젯 연동 전까지 노출하지 않음 (widgetCard는 ui/parts.js에 남겨둠) -->
 

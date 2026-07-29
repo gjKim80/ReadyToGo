@@ -261,6 +261,32 @@ export function optionCard(plan, { selected = false } = {}) {
     </button>`;
 }
 
+const KIND_GROUP_LABEL = {
+  subway: "🚇 지하철",
+  bus: "🚌 버스",
+  drive: "🚗 마이카",
+  walk: "🚶 도보",
+};
+
+/** 이동수단 후보를 지하철/버스/마이카/도보로 묶어서 보여준다(플랜 순서는 그대로 유지) */
+export function groupedOptionList(plans, selectedId) {
+  const order = [];
+  plans.forEach((p) => {
+    if (!order.includes(p.kind)) order.push(p.kind);
+  });
+
+  return order
+    .map((kind) => {
+      const items = plans.filter((p) => p.kind === kind);
+      return `
+        <p class="section-title" style="margin-top:16px">${KIND_GROUP_LABEL[kind] || kind}</p>
+        <div class="stack">
+          ${items.map((p) => optionCard(p, { selected: p.id === selectedId })).join("")}
+        </div>`;
+    })
+    .join("");
+}
+
 /* ---------- 위젯 미리보기 ---------- */
 
 /**

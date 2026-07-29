@@ -23,9 +23,9 @@ import {
   adviceBanners,
   approachLine,
   countdownBlock,
+  groupedOptionList,
   legsList,
   liveArrivals,
-  optionCard,
   planNotes,
   tickCountdown,
 } from "../ui/parts.js";
@@ -267,7 +267,7 @@ async function resultScreen(root, ctx, destination) {
         </div>
         <div class="seg" style="margin-top:10px">
           <button class="seg__btn" data-mode="transit" aria-pressed="${s.trip.mode === "transit"}">🚇 대중교통</button>
-          <button class="seg__btn" data-mode="driving" aria-pressed="${s.trip.mode === "driving"}">🚗 자차</button>
+          <button class="seg__btn" data-mode="driving" aria-pressed="${s.trip.mode === "driving"}">🚗 마이카</button>
         </div>
         <div class="row" style="gap:8px;margin-top:10px">
           <label class="field grow">
@@ -285,10 +285,7 @@ async function resultScreen(root, ctx, destination) {
       ${plan ? `<div class="card" style="margin-top:12px">${countdownBlock(plan)}</div>` : ""}
       ${adviceBanners(buildAdvice(view.weather, view.destWeather, plan))}
 
-      <p class="section-title" style="margin-top:20px">이동수단 비교</p>
-      <div class="stack">
-        ${view.plans.map((p) => optionCard(p, { selected: p.id === view.selectedId })).join("")}
-      </div>
+      ${groupedOptionList(view.plans, view.selectedId)}
 
       ${plan ? `<div class="card" style="margin-top:12px">${legsList(plan)}${planNotes(plan)}${approachLine(plan)}</div>` : ""}
       ${plan ? liveArrivals(plan) : ""}

@@ -146,7 +146,7 @@ function planDriving(route, { now, arriveBy, bufferSec }) {
     { kind: "walk", title: "출발 준비 · 차량까지", sub: "주차 위치까지 이동", sec: TO_CAR_SEC + bufferSec },
     {
       kind: "drive",
-      title: "자차 주행",
+      title: "마이카 주행",
       sub: `${route.summary} · ${fmtDistance(route.distance)}`,
       sec: route.durationSec,
     },
@@ -161,7 +161,7 @@ function planDriving(route, { now, arriveBy, bufferSec }) {
   return {
     id: "driving",
     kind: "drive",
-    label: "자차",
+    label: "마이카",
     icon: "🚗",
     color: "#1B64DA",
     live: true,

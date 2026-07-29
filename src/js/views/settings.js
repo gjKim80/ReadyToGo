@@ -139,7 +139,7 @@ export async function render(root, ctx = {}) {
           <span class="field__label">기본 이동수단</span>
           <div class="seg">
             <button class="seg__btn" data-prefer="transit" aria-pressed="${s.settings.preferredMode === "transit"}">🚇 대중교통</button>
-            <button class="seg__btn" data-prefer="driving" aria-pressed="${s.settings.preferredMode === "driving"}">🚗 자차</button>
+            <button class="seg__btn" data-prefer="driving" aria-pressed="${s.settings.preferredMode === "driving"}">🚗 마이카</button>
           </div>
         </div>
       </div>
