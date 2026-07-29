@@ -176,7 +176,13 @@ export function removePlace(id) {
     history: s.history.filter((h) => h !== id),
     homeId: s.homeId === id ? null : s.homeId,
     workId: s.workId === id ? null : s.workId,
-    trip: s.trip.destinationId === id ? { ...s.trip, destinationId: null } : s.trip,
+    trip: {
+      ...s.trip,
+      // 둘 중 하나라도 지운 장소를 가리키고 있었다면 정리한다 — 안 그러면 존재하지 않는
+      // 장소 id가 그대로 남아 getPlace()가 null을 반환하고, 그 null이 좌표 취급되며 퍼진다.
+      destinationId: s.trip.destinationId === id ? null : s.trip.destinationId,
+      originId: s.trip.originId === id ? null : s.trip.originId,
+    },
   }));
 }
 

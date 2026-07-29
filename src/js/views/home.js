@@ -13,6 +13,7 @@ import {
   getState,
   getWork,
   listFavorites,
+  listPlaces,
   setTrip,
 } from "../store.js";
 import { toast } from "../ui/components.js";
@@ -113,17 +114,27 @@ async function resolveTrip(state, now) {
 }
 
 function setupCard(kind) {
+  const noPlacesAtAll = listPlaces().length === 0;
+
   if (kind === "commute") {
     return `
       <div class="card">
-        <p class="empty">평일 모드를 쓰려면 집과 회사를 먼저 등록하세요.</p>
+        <p class="empty">${
+          noPlacesAtAll
+            ? "저장된 장소가 없어요.<br />집과 회사를 추가해주세요."
+            : "평일 모드를 쓰려면 집과 회사를 먼저 등록하세요."
+        }</p>
         <a class="btn btn--primary btn--block" href="#/settings">출퇴근 경로 설정하기</a>
       </div>`;
   }
   const favorites = listFavorites();
   return `
     <div class="card">
-      <p class="empty">어디로 가시나요?<br />목적지를 정하면 출발 시각을 역산해 드려요.</p>
+      <p class="empty">${
+        noPlacesAtAll
+          ? "저장된 장소가 없어요.<br />장소를 추가하면 출발 시각을 역산해 드려요."
+          : "어디로 가시나요?<br />목적지를 정하면 출발 시각을 역산해 드려요."
+      }</p>
       <a class="btn btn--primary btn--block" href="#/route">목적지 검색하기</a>
       ${
         favorites.length

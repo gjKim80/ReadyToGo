@@ -88,6 +88,10 @@ function mockWeather({ lat, lng }, now) {
  * @returns {Promise<object>}
  */
 export async function getWeather(coord, { now = new Date(), signal } = {}) {
+  // origin/destination이 삭제된 장소를 가리키던 stale id였을 경우 null이 넘어올 수 있다 —
+  // 화면 쪽은 이미 weather === null을 스켈레톤/생략으로 처리하므로 여기서 조용히 빠진다.
+  if (!coord) return null;
+
   if (!isMock()) {
     try {
       return await proxyGet(config.endpoints.weather, { lat: coord.lat, lng: coord.lng }, { signal });
