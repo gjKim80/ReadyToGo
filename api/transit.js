@@ -255,7 +255,13 @@ async function fetchBusArrival({ arsId, busNo }) {
 
 /* ---------- ODsay 경로 → 앱 itinerary 정규화 ---------- */
 
-async function toItinerary(path, { nowMs, walkPace, origin, destination }) {
+/**
+ * 동기 변환만 한다 — 실시간 조회는 아직 안 한다. ODsay가 주는 원본 경로 후보가
+ * 실제로 화면에 노출되는 것보다 훨씬 많아서(같은 버스 노선이 여러 경로에 중복 등장하는
+ * 등), 여기서 바로 실시간까지 물어보면 버려질 항목에도 쓸데없이 호출이 나간다.
+ * 실시간은 최종 선택(중복 제거 + 상위 몇 개) 이후 overlayRealtime()에서 붙인다.
+ */
+function buildItinerary(path, { nowMs, walkPace, origin, destination }) {
   const subPaths = path.subPath || [];
   const legs = subPaths.filter((s) => s.trafficType === SUBWAY || s.trafficType === BUS);
   if (!legs.length) return null;
@@ -276,31 +282,6 @@ async function toItinerary(path, { nowMs, walkPace, origin, destination }) {
   const headwaySec = legs[0].intervalTime ? minToSec(legs[0].intervalTime) : DEFAULT_HEADWAY[type];
   const line = lineOf(legs[0]);
 
-  // ── 실시간 도착 오버레이 (있으면 사용, 없으면 배차간격 기반 예정으로 폴백)
-  let arrivals = null;
-  let live = false;
-
-  if (type === "subway") {
-    const real = await fetchSubwayArrivals(legs[0].startName);
-    if (real?.length) {
-      arrivals = real;
-      live = true;
-    }
-  } else {
-    const real = await fetchBusArrival({
-      arsId: legs[0].startArsID,
-      busNo: line.name.replace(/번$/, ""), // 정제된 번호로 검색해야 서울 버스 API에서 노선을 찾는다
-    });
-    if (real) {
-      // 노선당 "다음 한 대"만 오므로 그 뒤는 배차간격으로 이어붙인다
-      const rest = scheduleArrivals(headwaySec, new Date(real.at).getTime(), 5).map((a) => ({ ...a, live: false }));
-      arrivals = [real, ...rest];
-      live = true;
-    }
-  }
-
-  if (!arrivals) arrivals = scheduleArrivals(headwaySec, nowMs);
-
   return {
     // 버스는 노선별로 여러 개를 동시에 보여줄 수 있어 타입만으론 id가 겹친다
     id: type === "bus" ? `bus-${line.name}` : type,
@@ -311,16 +292,48 @@ async function toItinerary(path, { nowMs, walkPace, origin, destination }) {
     rideSec,
     transfers: legs.length - 1,
     headwaySec,
-    arrivals,
+    arrivals: scheduleArrivals(headwaySec, nowMs),
     path: buildPath(subPaths, origin, destination),
-    live,
-    scheduled: !live,
+    live: false,
+    scheduled: true,
     headwayEstimated: !legs[0].intervalTime,
-    source: live ? (type === "subway" ? "seoul_subway" : "tago_bus") : "odsay_headway",
+    source: "odsay_headway",
     totalTimeSec: minToSec(path.info?.totalTime),
     fare: path.info?.payment ?? null,
     stationCount: legs.reduce((acc, l) => acc + (l.stationCount || 0), 0),
+    // 실시간 조회에 필요한 최소 정보만 내부용으로 들고 있다가 응답 직전 지운다
+    _leg0: { startName: legs[0].startName, startArsID: legs[0].startArsID },
   };
+}
+
+/** 최종 선택된 itinerary에만 호출한다 — 실패해도 이미 들어있는 배차 추정치를 그대로 둔다 */
+async function overlayRealtime(itinerary) {
+  const leg0 = itinerary._leg0;
+  if (itinerary.type === "subway") {
+    const real = await fetchSubwayArrivals(leg0.startName);
+    if (real?.length) {
+      itinerary.arrivals = real;
+      itinerary.live = true;
+      itinerary.scheduled = false;
+      itinerary.source = "seoul_subway";
+    }
+  } else {
+    const real = await fetchBusArrival({
+      arsId: leg0.startArsID,
+      busNo: itinerary.line.name.replace(/번$/, ""), // 정제된 번호로 검색해야 서울 버스 API에서 노선을 찾는다
+    });
+    if (real) {
+      // 노선당 "다음 한 대"만 오므로 그 뒤는 배차간격으로 이어붙인다
+      const rest = scheduleArrivals(itinerary.headwaySec, new Date(real.at).getTime(), 5).map((a) => ({
+        ...a,
+        live: false,
+      }));
+      itinerary.arrivals = [real, ...rest];
+      itinerary.live = true;
+      itinerary.scheduled = false;
+      itinerary.source = "tago_bus";
+    }
+  }
 }
 
 export default handler(async (req, res) => {
@@ -374,9 +387,9 @@ export default handler(async (req, res) => {
   }
 
   const nowMs = Date.now();
-  const converted = (
-    await Promise.all((data.result?.path || []).map((p) => toItinerary(p, { nowMs, walkPace, origin, destination })))
-  ).filter(Boolean);
+  const converted = (data.result?.path || [])
+    .map((p) => buildItinerary(p, { nowMs, walkPace, origin, destination }))
+    .filter(Boolean);
 
   // 지하철은 대표 경로 하나만(보통 ODsay 추천 1개면 충분), 버스는 노선번호별로 각각 남겨서
   // 여러 노선이 가능할 때 사용자가 직접 골라 탈 수 있게 한다. 같은 노선이 중복되면 더 빠른 쪽을 채택.
@@ -393,14 +406,22 @@ export default handler(async (req, res) => {
     });
   const buses = [...busByRoute.values()].sort((a, b) => a.totalTimeSec - b.totalTimeSec).slice(0, 4);
 
+  const itineraries = [bestSubway, ...buses].filter(Boolean);
+
+  // 실시간 조회는 비용이 크다(호출량 한도) — 최종 목록 중 지하철 1개 + 가장 빠른 버스 2개만 붙인다.
+  // 나머지 버스 옵션은 배차간격 기반 예정 시각으로 남는다.
+  const realtimeTargets = [bestSubway, ...buses.slice(0, 2)].filter(Boolean);
+  await Promise.all(realtimeTargets.map((it) => overlayRealtime(it)));
+  itineraries.forEach((it) => delete it._leg0);
+
   sendJson(
     res,
     200,
     {
-      itineraries: [bestSubway, ...buses].filter(Boolean),
+      itineraries,
       source: "odsay",
       searched: converted.length,
     },
-    { cacheSec: 30 }, // 실시간 도착이 섞이므로 이전(120s)보다 짧게 캐시
+    { cacheSec: 55 }, // 홈 화면 자동 새로고침 주기(60초)에 맞춰 중복 호출을 줄인다
   );
 });

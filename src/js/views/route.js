@@ -376,7 +376,8 @@ async function resultScreen(root, ctx, destination) {
   }, 1000);
 
   const refresher = setInterval(async () => {
-    if (disposed) return;
+    // 백그라운드 탭에서 계속 돌면 API 호출 한도만 축낸다 — 보이지 않을 땐 건너뛴다
+    if (disposed || document.hidden) return;
     await load();
     if (!disposed) paint();
   }, Math.max(20, getState().settings.autoRefreshSec) * 1000);
