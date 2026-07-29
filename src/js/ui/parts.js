@@ -16,28 +16,6 @@ import {
 
 /* ---------- 날씨 ---------- */
 
-export function weatherCard(weather, locationLabel) {
-  if (!weather) {
-    return `<div class="card"><div class="skeleton" style="height:52px"></div></div>`;
-  }
-  return `
-    <div class="card">
-      <div class="weather">
-        <span class="weather__glyph">${skyGlyph(weather.sky)}</span>
-        <div class="grow">
-          <div class="row" style="gap:8px;align-items:baseline">
-            <span class="weather__temp">${Math.round(weather.temp)}°</span>
-            <span class="badge">${escapeHtml(SKY_LABEL[weather.sky] || "")}</span>
-          </div>
-          <p class="weather__meta">
-            ${escapeHtml(locationLabel)} · 최저 ${Math.round(weather.tempMin)}° / 최고 ${Math.round(weather.tempMax)}°<br />
-            강수확률 ${weather.pop}% · 습도 ${weather.humidity}% · 바람 ${weather.windMs}m/s
-          </p>
-        </div>
-      </div>
-    </div>`;
-}
-
 export function adviceBanners(tips) {
   if (!tips?.length) return "";
   return `<div class="stack">${tips
@@ -82,8 +60,9 @@ export function weatherAdviceRow(weather, locationLabel, tips) {
             <span class="badge">${escapeHtml(SKY_LABEL[weather.sky] || "")}</span>
           </div>
           <p class="weather__meta">
-            ${escapeHtml(locationLabel)} · 최저 ${Math.round(weather.tempMin)}° / 최고 ${Math.round(weather.tempMax)}°<br />
-            강수확률 ${weather.pop}% · 습도 ${weather.humidity}% · 바람 ${weather.windMs}m/s
+            ${escapeHtml(locationLabel)}<br />
+            최저 ${Math.round(weather.tempMin)}° | 최고 ${Math.round(weather.tempMax)}°, 강수확률 ${weather.pop}%<br />
+            습도 ${weather.humidity}% | 바람 ${weather.windMs}m/s
           </p>
         </div>
       </div>

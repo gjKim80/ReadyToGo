@@ -107,6 +107,26 @@ function parseStationsAway(msg) {
 }
 
 const minToSec = (m) => Math.round((Number(m) || 0) * 60);
+
+/**
+ * 지도에 그릴 실제 동선. ODsay는 지하철/버스 구간마다 실제 경유 정류장/역 좌표
+ * (passStopList)를 주므로 그걸 이어붙이면 직선이 아니라 노선을 따라간다.
+ * 도보 구간(환승 이동 등)은 좌표를 안 주니 시작/끝만 이어 직선으로 근사한다.
+ */
+function buildPath(subPaths, origin, destination) {
+  const points = [[origin.lat, origin.lng]];
+  subPaths.forEach((s) => {
+    const stations = s.passStopList?.stations;
+    if (stations?.length) {
+      stations.forEach((st) => points.push([Number(st.y), Number(st.x)]));
+      return;
+    }
+    if (Number.isFinite(s.startY) && Number.isFinite(s.startX)) points.push([s.startY, s.startX]);
+    if (Number.isFinite(s.endY) && Number.isFinite(s.endX)) points.push([s.endY, s.endX]);
+  });
+  points.push([destination.lat, destination.lng]);
+  return points;
+}
 /** ODsay는 "수도권 2호선"처럼 접두어를 붙여 주므로 떼고 매칭한다(안 떼면 전부 기본색으로 빠짐) */
 const subwayColor = (name = "") =>
   SUBWAY_COLORS.find(([re]) => re.test(name.replace(/^수도권\s*/, "")))?.[1] || "#3D5BAB";
@@ -235,7 +255,7 @@ async function fetchBusArrival({ arsId, busNo }) {
 
 /* ---------- ODsay 경로 → 앱 itinerary 정규화 ---------- */
 
-async function toItinerary(path, { nowMs, walkPace }) {
+async function toItinerary(path, { nowMs, walkPace, origin, destination }) {
   const subPaths = path.subPath || [];
   const legs = subPaths.filter((s) => s.trafficType === SUBWAY || s.trafficType === BUS);
   if (!legs.length) return null;
@@ -292,6 +312,7 @@ async function toItinerary(path, { nowMs, walkPace }) {
     transfers: legs.length - 1,
     headwaySec,
     arrivals,
+    path: buildPath(subPaths, origin, destination),
     live,
     scheduled: !live,
     headwayEstimated: !legs[0].intervalTime,
@@ -354,7 +375,7 @@ export default handler(async (req, res) => {
 
   const nowMs = Date.now();
   const converted = (
-    await Promise.all((data.result?.path || []).map((p) => toItinerary(p, { nowMs, walkPace })))
+    await Promise.all((data.result?.path || []).map((p) => toItinerary(p, { nowMs, walkPace, origin, destination })))
   ).filter(Boolean);
 
   // 지하철은 대표 경로 하나만(보통 ODsay 추천 1개면 충분), 버스는 노선번호별로 각각 남겨서

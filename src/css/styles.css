@@ -329,16 +329,17 @@ ul { margin: 0; padding: 0; list-style: none; }
 .banner--danger { background: var(--c-danger-weak); color: var(--c-danger); border-color: currentColor; }
 .banner__text { color: var(--c-ink); }
 
-/* 날씨 옆 좁은 칸에 들어가는 축약형 — 세로로 쌓이고 글자도 한 단계 작다 */
+/* 날씨 옆 좁은 칸에 들어가는 축약형 — 박스 높이를 꽉 채우고 안에서 세로 중앙 정렬 */
 .banner--compact {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  padding: 9px 10px;
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
   font-size: 11.5px;
   line-height: 1.4;
 }
-.banner--compact .banner__emoji { font-size: 15px; }
+.banner--compact .banner__emoji { font-size: 16px; flex: none; }
 .banner--compact + .banner--compact { margin-top: 6px; }
 
 /* ---------- Weather strip ---------- */

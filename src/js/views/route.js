@@ -309,7 +309,8 @@ async function resultScreen(root, ctx, destination) {
       { ...view.origin, label: "출발", color: "#17A05F" },
       { ...destination, label: "도착", color: "#E0483C" },
     ]);
-    const path = plan?.meta?.route?.path;
+    // 자차는 NAVER Directions 폴리라인, 대중교통은 ODsay가 준 실제 경유 정류장/역 좌표를 잇는다
+    const path = plan?.meta?.route?.path || plan?.meta?.itinerary?.path;
     view.map.setRoute(path || [[view.origin.lat, view.origin.lng], [destination.lat, destination.lng]]);
   }
 
