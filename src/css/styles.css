@@ -329,6 +329,18 @@ ul { margin: 0; padding: 0; list-style: none; }
 .banner--danger { background: var(--c-danger-weak); color: var(--c-danger); border-color: currentColor; }
 .banner__text { color: var(--c-ink); }
 
+/* 날씨 옆 좁은 칸에 들어가는 축약형 — 세로로 쌓이고 글자도 한 단계 작다 */
+.banner--compact {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 9px 10px;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.banner--compact .banner__emoji { font-size: 15px; }
+.banner--compact + .banner--compact { margin-top: 6px; }
+
 /* ---------- Weather strip ---------- */
 
 .weather {
@@ -339,6 +351,20 @@ ul { margin: 0; padding: 0; list-style: none; }
 .weather__temp { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; }
 .weather__meta { font-size: 13px; font-weight: 600; color: var(--c-ink-2); line-height: 1.55; }
 .weather__glyph { width: 46px; height: 46px; flex: none; }
+
+/* 날씨 + 준비물 안내를 한 카드 안에 좌우로 배치(안내 쪽이 더 좁게) */
+.weather-row { display: flex; align-items: stretch; gap: 12px; }
+.weather-row__weather { flex: 1.7; min-width: 0; display: flex; align-items: center; gap: 12px; }
+.weather-row__weather .weather__glyph { width: 40px; height: 40px; }
+.weather-row__weather .weather__temp { font-size: 28px; }
+.weather-row__divider { width: 1px; flex: none; background: var(--c-line); align-self: stretch; }
+.weather-row__advice {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 
 /* ---------- Countdown ---------- */
 

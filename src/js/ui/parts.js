@@ -51,6 +51,46 @@ export function adviceBanners(tips) {
     .join("")}</div>`;
 }
 
+/** 날씨 요약 + 준비물 안내를 한 카드에 좌우로 배치한다(안내 쪽이 더 좁게) */
+export function weatherAdviceRow(weather, locationLabel, tips) {
+  if (!weather) {
+    return `<div class="card"><div class="skeleton" style="height:52px"></div></div>`;
+  }
+
+  const advice = tips?.length
+    ? `<div class="weather-row__divider"></div>
+       <div class="weather-row__advice">
+         ${tips
+           .map(
+             (tip) => `
+           <div class="banner banner--compact banner--${tip.tone}">
+             <span class="banner__emoji">${tip.emoji}</span>
+             <span class="banner__text">${escapeHtml(tip.text)}</span>
+           </div>`,
+           )
+           .join("")}
+       </div>`
+    : "";
+
+  return `
+    <div class="card weather-row">
+      <div class="weather-row__weather">
+        <span class="weather__glyph">${skyGlyph(weather.sky)}</span>
+        <div class="grow">
+          <div class="row" style="gap:8px;align-items:baseline">
+            <span class="weather__temp">${Math.round(weather.temp)}°</span>
+            <span class="badge">${escapeHtml(SKY_LABEL[weather.sky] || "")}</span>
+          </div>
+          <p class="weather__meta">
+            ${escapeHtml(locationLabel)} · 최저 ${Math.round(weather.tempMin)}° / 최고 ${Math.round(weather.tempMax)}°<br />
+            강수확률 ${weather.pop}% · 습도 ${weather.humidity}% · 바람 ${weather.windMs}m/s
+          </p>
+        </div>
+      </div>
+      ${advice}
+    </div>`;
+}
+
 /* ---------- 카운트다운 ---------- */
 
 const URGENCY_LABEL = {

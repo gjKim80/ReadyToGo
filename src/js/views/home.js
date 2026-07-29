@@ -19,7 +19,6 @@ import {
 } from "../store.js";
 import { toast } from "../ui/components.js";
 import {
-  adviceBanners,
   approachLine,
   countdownBlock,
   groupedOptionList,
@@ -27,7 +26,7 @@ import {
   liveArrivals,
   planNotes,
   tickCountdown,
-  weatherCard,
+  weatherAdviceRow,
 } from "../ui/parts.js";
 import {
   atTime,
@@ -221,8 +220,7 @@ export async function render(root, ctx = {}) {
     root.innerHTML = `
       <p class="section-title">${escapeHtml(fmtDateKo(new Date()))} · ${isWeekday ? "평일 모드" : "주말 모드"}</p>
 
-      ${weatherCard(view.weather, trip.origin.name)}
-      ${adviceBanners(tips)}
+      ${weatherAdviceRow(view.weather, trip.origin.name, tips)}
 
       <div class="card" style="margin-top:12px">
         <div class="row row--between" style="margin-bottom:4px">
