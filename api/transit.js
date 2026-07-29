@@ -107,7 +107,9 @@ function parseStationsAway(msg) {
 }
 
 const minToSec = (m) => Math.round((Number(m) || 0) * 60);
-const subwayColor = (name = "") => SUBWAY_COLORS.find(([re]) => re.test(name))?.[1] || "#3D5BAB";
+/** ODsay는 "수도권 2호선"처럼 접두어를 붙여 주므로 떼고 매칭한다(안 떼면 전부 기본색으로 빠짐) */
+const subwayColor = (name = "") =>
+  SUBWAY_COLORS.find(([re]) => re.test(name.replace(/^수도권\s*/, "")))?.[1] || "#3D5BAB";
 
 /** ws.bus.go.kr 응답: { msgHeader:{headerCd,headerMsg}, msgBody:{itemList} } — 1건이면 배열이 아닐 수 있다 */
 function seoulBusOk(data) {

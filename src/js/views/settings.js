@@ -13,6 +13,7 @@ import {
   setState,
 } from "../store.js";
 import { confirmSheet, openSheet, toast } from "../ui/components.js";
+import { APP_VERSION } from "../version.js";
 import { delegate, escapeHtml } from "../util.js";
 
 const PACE = [
@@ -200,13 +201,14 @@ export async function render(root, ctx = {}) {
 
       <p class="section-title" style="margin-top:20px">앱</p>
       <div class="card stack">
+        <button class="btn btn--ghost btn--block" data-act="update">최신 버전으로 업데이트</button>
         <button class="btn btn--ghost btn--block" data-act="install">홈 화면에 추가하는 방법</button>
         <button class="btn btn--ghost btn--block" data-act="reset" style="color:var(--c-danger)">
           모든 데이터 초기화
         </button>
       </div>
       <p class="muted" style="font-size:11.5px;font-weight:600;text-align:center;margin-top:16px">
-        ReadyToGo · 저장 데이터는 이 브라우저에만 보관됩니다
+        ReadyToGo v${escapeHtml(APP_VERSION)} · 저장 데이터는 이 브라우저에만 보관됩니다
       </p>`;
 
     // innerHTML을 새로 쓰면 상태 블록도 날아가므로 매 paint마다 다시 채운다(응답은 캐시됨)
@@ -298,6 +300,20 @@ export async function render(root, ctx = {}) {
           설치하면 전체화면으로 실행되고, 홈 화면 아이콘에서 바로 카운트다운을 확인할 수 있습니다.
         </p>`,
     });
+  });
+
+  delegate(root, "click", '[data-act="update"]', async () => {
+    toast("최신 버전으로 업데이트 중…");
+    try {
+      const regs = (await navigator.serviceWorker?.getRegistrations?.()) || [];
+      await Promise.all(regs.map((r) => r.unregister()));
+      const keys = (await window.caches?.keys?.()) || [];
+      await Promise.all(keys.map((k) => window.caches.delete(k)));
+    } catch {
+      /* 서비스워커/캐시 API가 없는 환경(사생활 모드 등) — 새로고침만 진행해도 무방 */
+    }
+    // 캐시된 index.html까지 확실히 건너뛰도록 쿼리를 붙여 새로고침한다
+    location.href = `${location.pathname}?u=${Date.now()}${location.hash}`;
   });
 
   delegate(root, "click", '[data-act="reset"]', async () => {
