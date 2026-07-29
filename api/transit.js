@@ -121,6 +121,14 @@ function seoulBusItems(data) {
   return Array.isArray(list) ? list : [list];
 }
 
+/**
+ * ODsay는 맞춤버스 등에서 "8641(맞춤버스(평일운행))"처럼 번호 뒤에 설명을 덧붙여 준다.
+ * 괄호 앞의 순수 번호만 남긴다 — 표시용으로도, 서울 버스 API 노선 검색 키워드로도 이게 맞다.
+ */
+function cleanBusNo(busNo) {
+  return String(busNo || "버스").split("(")[0].trim() || "버스";
+}
+
 function lineOf(leg) {
   const lane = leg.lane?.[0] || {};
   if (leg.trafficType === SUBWAY) {
@@ -128,7 +136,7 @@ function lineOf(leg) {
     return { name, color: subwayColor(name) };
   }
   const type = BUS_TYPES[lane.type] || { kind: "버스", color: "#3D5BAB" };
-  return { name: `${lane.busNo || "버스"}번`, color: type.color, kind: type.kind };
+  return { name: `${cleanBusNo(lane.busNo)}번`, color: type.color, kind: type.kind };
 }
 
 /** 실시간 정보가 없을 때: 평균 배차간격으로 도착 예정 시각을 만든다(첫 차는 배차간격의 절반 뒤) */
@@ -246,6 +254,7 @@ async function toItinerary(path, { nowMs, walkPace }) {
 
   const type = legs[0].trafficType === SUBWAY ? "subway" : "bus";
   const headwaySec = legs[0].intervalTime ? minToSec(legs[0].intervalTime) : DEFAULT_HEADWAY[type];
+  const line = lineOf(legs[0]);
 
   // ── 실시간 도착 오버레이 (있으면 사용, 없으면 배차간격 기반 예정으로 폴백)
   let arrivals = null;
@@ -260,7 +269,7 @@ async function toItinerary(path, { nowMs, walkPace }) {
   } else {
     const real = await fetchBusArrival({
       arsId: legs[0].startArsID,
-      busNo: legs[0].lane?.[0]?.busNo,
+      busNo: line.name.replace(/번$/, ""), // 정제된 번호로 검색해야 서울 버스 API에서 노선을 찾는다
     });
     if (real) {
       // 노선당 "다음 한 대"만 오므로 그 뒤는 배차간격으로 이어붙인다
@@ -271,8 +280,6 @@ async function toItinerary(path, { nowMs, walkPace }) {
   }
 
   if (!arrivals) arrivals = scheduleArrivals(headwaySec, nowMs);
-
-  const line = lineOf(legs[0]);
 
   return {
     // 버스는 노선별로 여러 개를 동시에 보여줄 수 있어 타입만으론 id가 겹친다
