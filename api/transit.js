@@ -253,10 +253,13 @@ async function toItinerary(path, { nowMs, walkPace }) {
 
   if (!arrivals) arrivals = scheduleArrivals(headwaySec, nowMs);
 
+  const line = lineOf(legs[0]);
+
   return {
-    id: type,
+    // 버스는 노선별로 여러 개를 동시에 보여줄 수 있어 타입만으론 id가 겹친다
+    id: type === "bus" ? `bus-${line.name}` : type,
     type,
-    line: lineOf(legs[0]),
+    line,
     board: { name: legs[0].startName, walkSec: boardWalk },
     alight: { name: legs[legs.length - 1].endName, walkSec: alightWalk },
     rideSec,
@@ -328,18 +331,26 @@ export default handler(async (req, res) => {
     await Promise.all((data.result?.path || []).map((p) => toItinerary(p, { nowMs, walkPace })))
   ).filter(Boolean);
 
-  // 앱은 지하철/버스 후보를 각각 하나씩 보여준다(plan id 중복 방지). 소요시간이 짧은 쪽을 채택.
-  const best = new Map();
-  converted.forEach((it) => {
-    const prev = best.get(it.type);
-    if (!prev || it.totalTimeSec < prev.totalTimeSec) best.set(it.type, it);
-  });
+  // 지하철은 대표 경로 하나만(보통 ODsay 추천 1개면 충분), 버스는 노선번호별로 각각 남겨서
+  // 여러 노선이 가능할 때 사용자가 직접 골라 탈 수 있게 한다. 같은 노선이 중복되면 더 빠른 쪽을 채택.
+  const bestSubway = converted
+    .filter((it) => it.type === "subway")
+    .sort((a, b) => a.totalTimeSec - b.totalTimeSec)[0];
+
+  const busByRoute = new Map();
+  converted
+    .filter((it) => it.type === "bus")
+    .forEach((it) => {
+      const prev = busByRoute.get(it.id);
+      if (!prev || it.totalTimeSec < prev.totalTimeSec) busByRoute.set(it.id, it);
+    });
+  const buses = [...busByRoute.values()].sort((a, b) => a.totalTimeSec - b.totalTimeSec).slice(0, 4);
 
   sendJson(
     res,
     200,
     {
-      itineraries: [...best.values()],
+      itineraries: [bestSubway, ...buses].filter(Boolean),
       source: "odsay",
       searched: converted.length,
     },

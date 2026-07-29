@@ -117,7 +117,8 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
   return {
     id: itinerary.id,
     kind: isSubway ? "subway" : "bus",
-    label: isSubway ? "지하철" : "버스",
+    // 버스는 노선이 여러 개 나올 수 있어 번호로 구분한다("버스"만으로는 서로 구별이 안 됨)
+    label: isSubway ? "지하철" : itinerary.line.name,
     icon: isSubway ? "🚇" : "🚌",
     color: itinerary.line.color,
     // ODsay 등 경로 전용 소스는 실시간 도착을 주지 않는다 — 있는 척하지 않는다
