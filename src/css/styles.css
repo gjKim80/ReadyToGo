@@ -418,6 +418,76 @@ ul { margin: 0; padding: 0; list-style: none; }
 .leg__sub { font-size: 12.5px; font-weight: 600; color: var(--c-ink-3); margin-top: 2px; }
 .leg__dur { margin-left: auto; font-size: 14px; font-weight: 800; white-space: nowrap; }
 
+/* ---------- Line badge (노선 컬러 + 번호, 지하철/버스 이모지 대체) ---------- */
+
+.line-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.line-badge--lg {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  font-size: 13px;
+  border: 2px solid var(--c-bg);
+}
+
+/* ---------- Approach line (몇 정거장 전인지 시각화) ---------- */
+
+.approach { margin-top: 14px; }
+
+.approach__track {
+  position: relative;
+  height: 4px;
+  background: var(--c-fill);
+  border-radius: 999px;
+  margin: 20px 6px 10px;
+}
+
+.approach__dot {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c-line);
+  transform: translate(-50%, -50%);
+}
+.approach__dot--board {
+  width: 12px;
+  height: 12px;
+  background: var(--c-primary);
+  box-shadow: 0 0 0 3px var(--c-primary-weak);
+}
+
+.approach__vehicle {
+  position: absolute;
+  top: 50%;
+  font-size: 20px;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  transition: left 0.6s ease;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+}
+
+.approach__label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--c-ink-2);
+  text-align: right;
+}
+
 /* ---------- Route option cards ---------- */
 
 .option {

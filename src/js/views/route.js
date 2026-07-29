@@ -21,6 +21,7 @@ import { openSheet, pinSvg, toast } from "../ui/components.js";
 import { createMap } from "../ui/map.js";
 import {
   adviceBanners,
+  approachLine,
   countdownBlock,
   legsList,
   liveArrivals,
@@ -289,7 +290,7 @@ async function resultScreen(root, ctx, destination) {
         ${view.plans.map((p) => optionCard(p, { selected: p.id === view.selectedId })).join("")}
       </div>
 
-      ${plan ? `<div class="card" style="margin-top:12px">${legsList(plan)}${planNotes(plan)}</div>` : ""}
+      ${plan ? `<div class="card" style="margin-top:12px">${legsList(plan)}${planNotes(plan)}${approachLine(plan)}</div>` : ""}
       ${plan ? liveArrivals(plan) : ""}
 
       <div class="row" style="gap:8px;margin-top:12px">

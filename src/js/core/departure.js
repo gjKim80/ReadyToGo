@@ -112,13 +112,15 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
       inSec: Math.round((a.at.getTime() - now.getTime()) / 1000),
       crowding: a.crowding,
       crowdingLabel: CROWDING_LABEL[a.crowding],
+      stationsAway: a.stationsAway ?? null,
     }));
 
   return {
     id: itinerary.id,
     kind: isSubway ? "subway" : "bus",
-    // 버스는 노선이 여러 개 나올 수 있어 번호로 구분한다("버스"만으로는 서로 구별이 안 됨)
-    label: isSubway ? "지하철" : itinerary.line.name,
+    // 지하철도 노선명을 그대로 쓴다 — 배지에 번호/색을 표시하려면 어차피 필요하고,
+    // 버스는 노선이 여러 개 나올 수 있어 "버스"만으로는 서로 구별이 안 된다.
+    label: itinerary.line.name,
     icon: isSubway ? "🚇" : "🚌",
     color: itinerary.line.color,
     // ODsay 등 경로 전용 소스는 실시간 도착을 주지 않는다 — 있는 척하지 않는다

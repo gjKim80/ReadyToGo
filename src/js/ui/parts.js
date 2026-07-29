@@ -122,22 +122,40 @@ export function tickCountdown(root, plan, now = new Date()) {
   box.querySelector("[data-cd-bar]").style.width = `${(ratio * 100).toFixed(1)}%`;
 }
 
+/* ---------- 노선 배지 (지하철/버스는 이모지 대신 실제 노선 컬러+번호) ---------- */
+
+/** "수도권 2호선" -> "2", "9호선" -> "9", "신분당선" -> "신분" (숫자가 없는 노선은 앞 2글자) */
+function badgeText(plan) {
+  const name = plan.label || "";
+  if (plan.kind === "bus") return name.replace(/번$/, "");
+  const stripped = name.replace(/^수도권\s*/, "");
+  return stripped.match(/^(\d+)호선/)?.[1] || stripped.slice(0, 2);
+}
+
+/** 자차/도보는 이모지 그대로, 지하철/버스는 실제 노선 색 배지로 표시한다 */
+function lineBadge(plan, { size = "md" } = {}) {
+  if (plan.kind !== "subway" && plan.kind !== "bus") return plan.icon;
+  const cls = size === "lg" ? "line-badge line-badge--lg" : "line-badge";
+  return `<span class="${cls}" style="background:${escapeHtml(plan.color || "#3D5BAB")}">${escapeHtml(badgeText(plan))}</span>`;
+}
+
 /* ---------- 경로 상세 ---------- */
 
 export function legsList(plan) {
   return `
     <ul class="legs">
       ${plan.legs
-        .map(
-          (leg) => `
+        .map((leg) => {
+          const isRideLeg = leg.kind === "subway" || leg.kind === "bus";
+          return `
         <li class="leg" data-kind="${leg.kind}">
           <div class="grow">
-            <p class="leg__title">${escapeHtml(leg.title)}</p>
+            <p class="leg__title">${isRideLeg ? `${lineBadge(plan)} ` : ""}${escapeHtml(leg.title)}</p>
             ${leg.sub ? `<p class="leg__sub">${escapeHtml(leg.sub)}</p>` : ""}
           </div>
           <span class="leg__dur">${fmtDur(leg.sec)}</span>
-        </li>`,
-        )
+        </li>`;
+        })
         .join("")}
     </ul>`;
 }
@@ -147,6 +165,41 @@ export function planNotes(plan) {
   return `<p class="muted" style="font-size:12.5px;font-weight:600;line-height:1.6;margin-top:10px">
     ${plan.notes.map((n) => escapeHtml(n)).join(" · ")}
   </p>`;
+}
+
+/**
+ * 승차 예정 버스/지하철이 승강장 기준 몇 정거장 전에 있는지 보여주는 라인 시각화.
+ * 실시간 도착 문구에서 정거장 수를 못 뽑아낸 경우(배차 추정, 운행종료 등)엔 조용히 생략한다.
+ */
+export function approachLine(plan) {
+  const arrival = plan.meta?.nextArrivals?.[0];
+  const away = arrival?.stationsAway;
+  if (away === null || away === undefined) return "";
+
+  const MAX = 6;
+  const capped = clamp(away, 0, MAX);
+  const vehiclePct = ((MAX - capped) / MAX) * 100;
+  const boardName = plan.meta?.itinerary?.board?.name || "승차 지점";
+
+  const dots = Array.from({ length: MAX + 1 }, (_, i) => {
+    const pct = (i / MAX) * 100;
+    const isBoard = i === MAX;
+    return `<span class="approach__dot${isBoard ? " approach__dot--board" : ""}" style="left:${pct}%"></span>`;
+  }).join("");
+
+  const label =
+    away === 0
+      ? `${escapeHtml(boardName)} 도착!`
+      : `${away > MAX ? `${MAX}+` : away}정거장 전 · ${escapeHtml(boardName)} 방면`;
+
+  return `
+    <div class="approach">
+      <div class="approach__track">
+        ${dots}
+        <span class="approach__vehicle" style="left:${vehiclePct}%">${lineBadge(plan, { size: "lg" })}</span>
+      </div>
+      <p class="approach__label">${label}</p>
+    </div>`;
 }
 
 /**
@@ -192,16 +245,13 @@ export function optionCard(plan, { selected = false } = {}) {
         ? `<span class="badge badge--ok">여유 ${fmtDur(slack)}</span>`
         : "";
 
-  const traffic = plan.meta?.route
-    ? ` · 도로 ${TRAFFIC_LABEL[plan.meta.route.trafficLevel]}`
-    : plan.meta?.itinerary
-      ? ` · ${escapeHtml(plan.meta.itinerary.line.name)}`
-      : "";
+  // label이 이미 노선명(예: 수도권 2호선/421번)을 보여주므로 여기선 도로 상황만 보충한다
+  const traffic = plan.meta?.route ? ` · 도로 ${TRAFFIC_LABEL[plan.meta.route.trafficLevel]}` : "";
 
   return `
     <button class="option" data-plan="${escapeHtml(plan.id)}" aria-pressed="${selected}">
       <span class="option__head">
-        <span class="option__mode">${plan.icon} ${escapeHtml(plan.label)}</span>
+        <span class="option__mode">${lineBadge(plan)} ${escapeHtml(plan.label)}</span>
         ${badge}
         <span class="option__dur">${fmtDur(plan.totalSec)}</span>
       </span>
@@ -238,7 +288,7 @@ export function widgetCard({ plan, weather, destName, now = new Date() }) {
       <p class="widget__sub">${plan ? `${fmtClock(plan.leaveAt)} 출발 · ${escapeHtml(destName || "")}` : "목적지를 설정하세요"}</p>
       ${
         plan
-          ? `<div class="widget__foot">${plan.icon} ${escapeHtml(plan.label)} · ${fmtDur(plan.totalSec)} · ${fmtClock(plan.arriveAt)} 도착</div>`
+          ? `<div class="widget__foot">${lineBadge(plan)} ${escapeHtml(plan.label)} · ${fmtDur(plan.totalSec)} · ${fmtClock(plan.arriveAt)} 도착</div>`
           : ""
       }
     </div>`;

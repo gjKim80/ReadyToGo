@@ -14,11 +14,13 @@ import {
   getWork,
   listFavorites,
   listPlaces,
+  setCommute,
   setTrip,
 } from "../store.js";
 import { toast } from "../ui/components.js";
 import {
   adviceBanners,
+  approachLine,
   countdownBlock,
   legsList,
   liveArrivals,
@@ -226,9 +228,25 @@ export async function render(root, ctx = {}) {
         <div class="row row--between" style="margin-bottom:4px">
           <div class="grow">
             <p style="font-size:16px;font-weight:800" class="truncate">${escapeHtml(trip.title)}</p>
-            <p class="muted" style="font-size:12.5px;font-weight:600;margin-top:2px">
-              ${escapeHtml(trip.origin.name)} → ${escapeHtml(trip.destination.name)} · ${escapeHtml(trip.subtitle)}
+            <p class="muted truncate" style="font-size:12.5px;font-weight:600;margin-top:2px">
+              ${escapeHtml(trip.origin.name)} → ${escapeHtml(trip.destination.name)}
             </p>
+            ${
+              isWeekday
+                ? `<div class="row" style="gap:6px;margin-top:6px;align-items:center">
+                     <span class="muted" style="font-size:12.5px;font-weight:600;white-space:nowrap">
+                       ${trip.direction === "toWork" ? "도착 목표" : "회사 출발"}
+                     </span>
+                     <input
+                       type="time"
+                       class="input"
+                       data-commute-quick="${trip.direction === "toWork" ? "arriveAt" : "leaveAt"}"
+                       value="${escapeHtml(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)}"
+                       style="height:32px;width:auto;min-width:0;padding:0 8px;font-size:13px;flex:none"
+                     />
+                   </div>`
+                : `<p class="muted" style="font-size:12.5px;font-weight:600;margin-top:2px">${escapeHtml(trip.subtitle)}</p>`
+            }
           </div>
           ${
             isWeekday
@@ -243,7 +261,7 @@ export async function render(root, ctx = {}) {
         ${plan ? countdownBlock(plan) : `<p class="empty">경로를 찾을 수 없습니다.</p>`}
       </div>
 
-      ${plan ? `<div class="card">${legsList(plan)}${planNotes(plan)}</div>` : ""}
+      ${plan ? `<div class="card">${legsList(plan)}${planNotes(plan)}${approachLine(plan)}</div>` : ""}
       ${plan ? liveArrivals(plan) : ""}
 
       ${
@@ -281,6 +299,13 @@ export async function render(root, ctx = {}) {
   delegate(root, "click", "[data-dir]", (_e, el) => {
     if (directionOverride === el.dataset.dir) return;
     directionOverride = el.dataset.dir;
+    ctx.refresh?.();
+  });
+
+  delegate(root, "change", "[data-commute-quick]", (_e, el) => {
+    if (!el.value) return;
+    setCommute({ [el.dataset.commuteQuick]: el.value });
+    toast("출퇴근 시각을 저장했어요");
     ctx.refresh?.();
   });
 

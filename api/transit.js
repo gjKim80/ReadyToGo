@@ -91,6 +91,21 @@ const BUS_TYPES = {
 /** intervalTime이 비어 있을 때 쓰는 기본 배차간격(초) */
 const DEFAULT_HEADWAY = { subway: 300, bus: 600 };
 
+/**
+ * 실시간 도착 문구에서 "몇 정거장 전"을 뽑아낸다.
+ * 지하철(arvlMsg2): "[4]번째 전역 (판교)", "전역 도착", "강남 도착" 등
+ * 버스(arrmsg1): "3분후[2번째전]", "곧 도착", "운행종료" 등
+ * 못 읽어내는 문구(운행종료 등)는 null — 그 경우 시각화는 조용히 생략된다.
+ */
+function parseStationsAway(msg) {
+  if (!msg) return null;
+  // "[2]번째 전역", "2번째전" 등 — 숫자와 "번째" 사이에 닫는 대괄호가 낄 수 있다
+  const m = String(msg).match(/(\d+)\]?\s*번째\s*전/);
+  if (m) return Number(m[1]);
+  if (/도착|진입/.test(msg)) return 0;
+  return null;
+}
+
 const minToSec = (m) => Math.round((Number(m) || 0) * 60);
 const subwayColor = (name = "") => SUBWAY_COLORS.find(([re]) => re.test(name))?.[1] || "#3D5BAB";
 
@@ -147,6 +162,7 @@ async function fetchSubwayArrivals(stationName) {
         crowding: null,
         /** 승강장 전광판 문구 그대로 — 방향 확정이 안 되니 사용자가 직접 보고 판단 */
         label: `${t.trainLineNm || ""} · ${t.arvlMsg2 || ""}`.trim(),
+        stationsAway: parseStationsAway(t.arvlMsg2),
       }))
       .sort((a, b) => new Date(a.at) - new Date(b.at))
       .slice(0, 6);
@@ -199,6 +215,7 @@ async function fetchBusArrival({ arsId, busNo }) {
       live: true,
       crowding: null,
       label: stop.arrmsg1 || null,
+      stationsAway: parseStationsAway(stop.arrmsg1),
     };
   } catch (err) {
     console.warn("[transit] 서울 버스 실시간 조회 실패", err.message);
