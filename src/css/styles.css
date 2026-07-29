@@ -161,7 +161,8 @@ ul { margin: 0; padding: 0; list-style: none; }
 
 .view {
   flex: 1;
-  padding: 16px 16px calc(var(--tabbar-h) + 24px);
+  /* 탭바와 똑같이 안전영역(홈 인디케이터 등)만큼 더 띄워야 마지막 내용이 안 가려진다 */
+  padding: 16px 16px calc(var(--tabbar-h) + 24px + env(safe-area-inset-bottom, 0px));
   outline: none;
 }
 
