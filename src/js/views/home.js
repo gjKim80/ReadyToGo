@@ -118,19 +118,38 @@ function headerLine(now, isWeekday) {
   return `<p class="section-title">${escapeHtml(fmtDateKo(now))} · ${isWeekday ? "평일 모드" : "주말 모드"}</p>`;
 }
 
-/** 날짜는 얇고 작게, 시간은 굵고 크게 — 타이포그라피 대비로 "지금 몇 시인지"에 시선이 먼저 가도록 */
-function fmtSetupDate(now) {
-  const day = ["일", "월", "화", "수", "목", "금", "토"][now.getDay()];
-  return `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${day}요일`;
-}
-
-function setupHeaderLine(now) {
+/** "출발 보드" 히어로 — eyebrow "현재 시각" + 전광판 스타일 큰 시각(고정폭) + 오늘 날짜 */
+function heroTimeBlock(now) {
   const ampm = now.getHours() < 12 ? "오전" : "오후";
   const h12 = now.getHours() % 12 || 12;
   const mm = String(now.getMinutes()).padStart(2, "0");
   return `
-    <p class="setup-date">${escapeHtml(fmtSetupDate(now))}</p>
-    <p class="setup-time"><span class="setup-time__ampm">${escapeHtml(ampm)}</span> ${h12}시 ${mm}분</p>`;
+    <div class="hero-row">
+      <span class="eyebrow">현재 시각</span>
+      <span class="eyebrow eyebrow--muted">${escapeHtml(fmtDateKo(now))}</span>
+    </div>
+    <p class="hero-time">
+      <span class="hero-time__ampm">${escapeHtml(ampm)}</span>
+      <span class="hero-time__digits mono-num">${h12}:${mm}</span>
+    </p>
+    <div id="status-chip-slot" class="status-chip-slot"></div>`;
+}
+
+/**
+ * 실제 지금부터 (plan이 요구하는) 출발 시각까지 남은 시간을 "여유 N시간 M분" 상태 칩으로 — 30분 이내면 warn 톤.
+ * plan.leaveInSec은 planTrip에 넘긴 기준 시각(퇴근 목표처럼 미래일 수 있음) 대비라 여기 쓰면 안 되고,
+ * 항상 실제 현재 시각(Date.now()) 기준으로 새로 계산해야 "지금부터의 여유"가 정확하다.
+ */
+function statusChipHtml(plan) {
+  const leaveInSec = Math.round((plan.leaveAt.getTime() - Date.now()) / 1000);
+  const mins = Math.round(leaveInSec / 60);
+  const tone = mins <= 30 ? "warn" : "ok";
+  let label;
+  if (mins < 0) label = "출발 시각이 지났어요";
+  else if (mins === 0) label = "지금 출발하세요";
+  else if (mins >= 60) label = `여유 ${Math.floor(mins / 60)}시간 ${mins % 60}분`;
+  else label = `여유 ${mins}분`;
+  return `<span class="status-chip status-chip--${tone}"><span class="status-chip__dot" aria-hidden="true"></span>${escapeHtml(label)}</span>`;
 }
 
 /** 평일인데 집/회사 자체가 저장되어 있지 않은 경우 — Settings로 유도한다(대체 수단 없음). */
@@ -153,6 +172,41 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
   let pickerOpen = isWeekday ? false : trip.needsSetup === "destination";
   let disposed = false;
   let pickerDispose = null;
+  /** Ready 아래 예상 소요/상태 칩용 — 있으면 쓰고, 못 구했으면 조용히 생략(스펙 기준) */
+  let estimatePlan = null;
+
+  function applyEstimate() {
+    if (pickerOpen || !estimatePlan) return;
+    const chipSlot = root.querySelector("#status-chip-slot");
+    if (chipSlot) chipSlot.innerHTML = statusChipHtml(estimatePlan);
+    const subtextSlot = root.querySelector("#ready-subtext-slot");
+    if (subtextSlot) {
+      const mins = Math.round(estimatePlan.totalSec / 60);
+      const label = isWeekday ? (trip.direction === "toWork" ? "회사" : "집") : trip.destination.name;
+      subtextSlot.textContent = `${label} 도착까지 예상 ${mins}분`;
+    }
+  }
+
+  async function loadEstimateOnce() {
+    if (!trip.origin || !trip.destination) return;
+    const s = getState();
+    try {
+      const plans = await planTrip({
+        origin: trip.origin,
+        destination: trip.destination,
+        arriveBy: trip.arriveBy,
+        now: trip.planNow,
+        bufferMin: s.settings.bufferMin,
+        walkPace: s.settings.walkPace,
+        prefer: isWeekday ? s.settings.preferredMode : s.trip.mode,
+      });
+      if (disposed) return;
+      estimatePlan = plans[0] || null;
+      applyEstimate();
+    } catch {
+      // 실패해도 화면을 막지 않는다 — 칩/서브텍스트는 없으면 그냥 생략
+    }
+  }
 
   function paint() {
     const s = getState();
@@ -162,64 +216,71 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
 
     const weekdayBody = isWeekday
       ? `
-        <div class="dir-stack">
-          <button class="dir-card" data-dir="toWork" aria-pressed="${trip.direction === "toWork"}">
-            <span class="dir-card__route">집(${escapeHtml(home.name)}) → 회사(${escapeHtml(work.name)})</span>
-            <span class="dir-card__label">출근</span>
+        <div class="route-row-list">
+          <button class="route-row" data-dir="toWork" aria-pressed="${trip.direction === "toWork"}">
+            <span class="route-row__bar" aria-hidden="true"></span>
+            <span class="route-row__body">
+              <span class="route-row__sub">집(${escapeHtml(home.name)}) → 회사(${escapeHtml(work.name)})</span>
+              <span class="route-row__title">출근</span>
+            </span>
           </button>
-          <button class="dir-card" data-dir="toHome" aria-pressed="${trip.direction === "toHome"}">
-            <span class="dir-card__route">회사(${escapeHtml(work.name)}) → 집(${escapeHtml(home.name)})</span>
-            <span class="dir-card__label">퇴근</span>
+          <button class="route-row" data-dir="toHome" aria-pressed="${trip.direction === "toHome"}">
+            <span class="route-row__bar" aria-hidden="true"></span>
+            <span class="route-row__body">
+              <span class="route-row__sub">회사(${escapeHtml(work.name)}) → 집(${escapeHtml(home.name)})</span>
+              <span class="route-row__title">퇴근</span>
+            </span>
           </button>
         </div>
 
-        <div class="card" style="margin-top:14px">
-          <p class="setup-field-label">
-            ${trip.direction === "toWork" ? "회사 도착 목표" : "회사 출발 시각"}
-          </p>
-          <input
-            type="time"
-            class="input input--big"
-            data-commute-quick="${trip.direction === "toWork" ? "arriveAt" : "leaveAt"}"
-            value="${escapeHtml(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)}"
-          />
-        </div>`
+        <hr class="hairline" />
+
+        <div class="field-row">
+          <span class="field-label">${trip.direction === "toWork" ? "회사 도착 목표" : "회사 출발 시각"}</span>
+          <button class="link-btn" type="button" data-act="edit-time">변경</button>
+        </div>
+        <input
+          type="time"
+          class="field-value-input"
+          data-commute-quick="${trip.direction === "toWork" ? "arriveAt" : "leaveAt"}"
+          value="${escapeHtml(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)}"
+        />`
       : "";
 
     const weekendBody = !isWeekday
       ? `
-        <p class="section-title" style="margin-top:20px">목적지</p>
+        <div class="route-row-list">
+          ${
+            pickerOpen
+              ? `<div id="picker-slot" style="padding:4px 0"></div>`
+              : `<button class="route-row" data-act="open-picker" aria-pressed="true" style="align-items:center">
+                   <span class="route-row__bar" aria-hidden="true"></span>
+                   <span class="route-row__body grow" style="min-width:0">
+                     <span class="route-row__sub truncate">${escapeHtml(destination.address || "목적지")}</span>
+                     <span class="route-row__title truncate">${escapeHtml(destination.name)}</span>
+                   </span>
+                   <span class="link-btn" style="flex:none;align-self:center">변경</span>
+                 </button>`
+          }
+        </div>
+
         ${
           pickerOpen
-            ? `<div id="picker-slot"></div>`
+            ? ""
             : `
-              <div class="card">
-                <button class="row row--between" data-act="open-picker" style="width:100%;text-align:left;gap:8px">
-                  <span class="grow" style="min-width:0">
-                    <span style="display:block;font-size:16px;font-weight:800" class="truncate">${escapeHtml(destination.name)}</span>
-                    <span class="muted truncate" style="display:block;font-size:12.5px;font-weight:600;margin-top:2px">
-                      ${escapeHtml(destination.address || "")}
-                    </span>
-                  </span>
-                  <span class="muted" style="font-size:12px;font-weight:700;flex:none">변경 ›</span>
-                </button>
-              </div>
+              <hr class="hairline" />
 
-              <div class="card" style="padding:12px;margin-top:8px">
-                <div class="row row--between">
-                  <span style="font-size:13.5px;font-weight:700">도착 희망 시각</span>
-                  <div class="row" style="gap:8px">
-                    <input type="time" class="input" id="arriveBy" value="${escapeHtml(s.trip.arriveBy || "")}"
-                           style="height:36px;width:auto;min-width:0;padding:0 10px;font-size:14px" />
-                    <button class="btn btn--sm btn--ghost" data-act="now">지금 출발</button>
-                  </div>
-                </div>
-                <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:10px">
-                  <span class="muted" style="font-size:12.5px;font-weight:700">출발지</span>
-                  <button class="chip" data-origin="" aria-pressed="${!s.trip.originId}">📍 현재 위치</button>
-                  ${getHome() ? `<button class="chip" data-origin="${escapeHtml(getHome().id)}" aria-pressed="${s.trip.originId === getHome().id}">🏠 집</button>` : ""}
-                  ${getWork() ? `<button class="chip" data-origin="${escapeHtml(getWork().id)}" aria-pressed="${s.trip.originId === getWork().id}">🏢 회사</button>` : ""}
-                </div>
+              <div class="field-row">
+                <span class="field-label">도착 희망 시각</span>
+                <button class="link-btn" type="button" data-act="now">지금 출발</button>
+              </div>
+              <input type="time" class="field-value-input" id="arriveBy" value="${escapeHtml(s.trip.arriveBy || "")}" />
+
+              <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:16px">
+                <span class="eyebrow">출발지</span>
+                <button class="chip" data-origin="" aria-pressed="${!s.trip.originId}">📍 현재 위치</button>
+                ${getHome() ? `<button class="chip" data-origin="${escapeHtml(getHome().id)}" aria-pressed="${s.trip.originId === getHome().id}">🏠 집</button>` : ""}
+                ${getWork() ? `<button class="chip" data-origin="${escapeHtml(getWork().id)}" aria-pressed="${s.trip.originId === getWork().id}">🏢 회사</button>` : ""}
               </div>`
         }`
       : "";
@@ -227,19 +288,21 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
     const readyDisabled = isWeekday ? false : !destination || pickerOpen;
 
     root.innerHTML = `
-      ${setupHeaderLine(new Date())}
+      ${heroTimeBlock(new Date())}
+      <hr class="hairline" />
       <div id="setup-collapse" class="setup-collapse">
         ${weekdayBody}
         ${weekendBody}
       </div>
       ${
         !pickerOpen
-          ? `<button class="btn btn--primary btn--block btn--ready" data-act="ready" style="margin-top:20px" ${readyDisabled ? "disabled" : ""}>
+          ? `<button class="btn btn--primary btn--block btn--ready" data-act="ready" style="margin-top:26px" ${readyDisabled ? "disabled" : ""}>
                Ready
-             </button>`
+             </button>
+             <p id="ready-subtext-slot" class="ready-subtext"></p>`
           : ""
       }
-      <p class="muted" style="font-size:11px;font-weight:600;text-align:center;margin-top:28px">
+      <p class="app-footer">
         ReadyToGo v${escapeHtml(APP_VERSION)} (dev) · ${escapeHtml(buildTimeLabel())} 업데이트
       </p>`;
 
@@ -257,9 +320,12 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
         },
       });
     }
+
+    applyEstimate();
   }
 
   paint();
+  loadEstimateOnce();
 
   delegate(root, "click", "[data-dir]", (_e, el) => {
     if (state.trip.weekdayDirection === el.dataset.dir) return;
@@ -272,6 +338,12 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
     setCommute({ [el.dataset.commuteQuick]: el.value });
     toast("출퇴근 시각을 저장했어요");
     ctx.refresh?.();
+  });
+
+  delegate(root, "click", '[data-act="edit-time"]', () => {
+    const input = root.querySelector("[data-commute-quick], #arriveBy");
+    if (input?.showPicker) input.showPicker();
+    else input?.focus();
   });
 
   delegate(root, "click", '[data-act="open-picker"]', () => {
@@ -395,7 +467,7 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
 
       <!-- 홈 화면 위젯 미리보기: 실제 OS 위젯 연동 전까지 노출하지 않음 (widgetCard는 ui/parts.js에 남겨둠) -->
 
-      <p class="muted" style="font-size:11px;font-weight:600;text-align:center;margin-top:28px">
+      <p class="app-footer">
         ReadyToGo v${escapeHtml(APP_VERSION)} (dev) · ${escapeHtml(buildTimeLabel())} 업데이트
       </p>`;
 
