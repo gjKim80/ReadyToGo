@@ -118,6 +118,19 @@ function headerLine(now, isWeekday) {
   return `<p class="section-title">${escapeHtml(fmtDateKo(now))} · ${isWeekday ? "평일 모드" : "주말 모드"}</p>`;
 }
 
+/** "0730(목)_PM0803" — 날짜만으론 지금이 언제인지 바로 안 보여서, 설정 화면에선 시간까지 압축해서 같이 보여준다 */
+function fmtSetupHeader(now) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const day = ["일", "월", "화", "수", "목", "금", "토"][now.getDay()];
+  const ampm = now.getHours() < 12 ? "AM" : "PM";
+  const h12 = now.getHours() % 12 || 12;
+  return `${pad(now.getMonth() + 1)}${pad(now.getDate())}(${day})_${ampm}${pad(h12)}${pad(now.getMinutes())}`;
+}
+
+function setupHeaderLine(now) {
+  return `<p class="setup-header">${escapeHtml(fmtSetupHeader(now))}</p>`;
+}
+
 /** 평일인데 집/회사 자체가 저장되어 있지 않은 경우 — Settings로 유도한다(대체 수단 없음). */
 function commuteMissingCard() {
   const noPlacesAtAll = listPlaces().length === 0;
@@ -142,35 +155,32 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
   function paint() {
     const s = getState();
     const destination = isWeekday ? null : getPlace(s.trip.destinationId);
+    const home = isWeekday ? getHome() : null;
+    const work = isWeekday ? getWork() : null;
 
     const weekdayBody = isWeekday
       ? `
-        <p class="section-title" style="margin-top:20px">방향</p>
-        <div class="row" style="gap:8px">
-          <button class="option grow" data-dir="toWork" aria-pressed="${trip.direction === "toWork"}" style="text-align:center">
-            <span class="option__mode">🚪 출근</span>
+        <div class="dir-stack">
+          <button class="dir-card" data-dir="toWork" aria-pressed="${trip.direction === "toWork"}">
+            <span class="dir-card__route">집(${escapeHtml(home.name)}) → 회사(${escapeHtml(work.name)})</span>
+            <span class="dir-card__label">출근</span>
           </button>
-          <button class="option grow" data-dir="toHome" aria-pressed="${trip.direction === "toHome"}" style="text-align:center">
-            <span class="option__mode">🏠 퇴근</span>
+          <button class="dir-card" data-dir="toHome" aria-pressed="${trip.direction === "toHome"}">
+            <span class="dir-card__route">회사(${escapeHtml(work.name)}) → 집(${escapeHtml(home.name)})</span>
+            <span class="dir-card__label">퇴근</span>
           </button>
         </div>
 
-        <div class="card" style="margin-top:12px">
-          <div class="row row--between">
-            <span style="font-size:14.5px;font-weight:700">
-              ${trip.direction === "toWork" ? "회사 도착 목표" : "회사 출발 시각"}
-            </span>
-            <input
-              type="time"
-              class="input"
-              data-commute-quick="${trip.direction === "toWork" ? "arriveAt" : "leaveAt"}"
-              value="${escapeHtml(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)}"
-              style="height:36px;width:auto;min-width:0;padding:0 10px;font-size:14px;flex:none"
-            />
-          </div>
-          <p class="muted" style="font-size:12.5px;font-weight:600;margin-top:8px">
-            ${escapeHtml(trip.origin.name)} → ${escapeHtml(trip.destination.name)}
+        <div class="card" style="margin-top:14px">
+          <p class="setup-field-label">
+            ${trip.direction === "toWork" ? "회사 도착 목표" : "회사 출발 시각"}
           </p>
+          <input
+            type="time"
+            class="input input--big"
+            data-commute-quick="${trip.direction === "toWork" ? "arriveAt" : "leaveAt"}"
+            value="${escapeHtml(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)}"
+          />
         </div>`
       : "";
 
@@ -215,9 +225,11 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
     const readyDisabled = isWeekday ? false : !destination || pickerOpen;
 
     root.innerHTML = `
-      ${headerLine(now0, isWeekday)}
-      ${weekdayBody}
-      ${weekendBody}
+      ${setupHeaderLine(new Date())}
+      <div id="setup-collapse" class="setup-collapse">
+        ${weekdayBody}
+        ${weekendBody}
+      </div>
       ${
         !pickerOpen
           ? `<button class="btn btn--primary btn--block btn--ready" data-act="ready" style="margin-top:20px" ${readyDisabled ? "disabled" : ""}>
@@ -282,10 +294,21 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
 
   delegate(root, "click", '[data-act="ready"]', async (_e, el) => {
     el.disabled = true;
-    el.textContent = "Go!";
+    el.textContent = "GO";
     el.classList.add("btn--ready--go");
     await sleep(420);
     if (disposed) return;
+
+    // 기존 메뉴(방향/시간·목적지 설정)를 위로 밀어 접은 뒤, 그 자리에 카운트다운 데이터가 나타나도록
+    const collapseEl = root.querySelector("#setup-collapse");
+    if (collapseEl) {
+      collapseEl.style.maxHeight = `${collapseEl.scrollHeight}px`;
+      void collapseEl.offsetHeight; // 강제 리플로우 — 아래 클래스 추가가 트랜지션으로 잡히도록
+      collapseEl.classList.add("setup-collapse--collapsed");
+      await sleep(380);
+      if (disposed) return;
+    }
+
     setTrip({ active: true });
     ctx.refresh?.();
   });
@@ -410,6 +433,7 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
 
   await load();
   if (disposed) return () => {};
+  root.classList.add("view-enter"); // 설정 화면이 접힌 자리에서 카운트다운 데이터가 나타나는 연출
   paint();
 
   const ticker = setInterval(() => {
