@@ -118,17 +118,19 @@ function headerLine(now, isWeekday) {
   return `<p class="section-title">${escapeHtml(fmtDateKo(now))} · ${isWeekday ? "평일 모드" : "주말 모드"}</p>`;
 }
 
-/** "0730(목)_PM0803" — 날짜만으론 지금이 언제인지 바로 안 보여서, 설정 화면에선 시간까지 압축해서 같이 보여준다 */
-function fmtSetupHeader(now) {
-  const pad = (n) => String(n).padStart(2, "0");
+/** 날짜는 얇고 작게, 시간은 굵고 크게 — 타이포그라피 대비로 "지금 몇 시인지"에 시선이 먼저 가도록 */
+function fmtSetupDate(now) {
   const day = ["일", "월", "화", "수", "목", "금", "토"][now.getDay()];
-  const ampm = now.getHours() < 12 ? "AM" : "PM";
-  const h12 = now.getHours() % 12 || 12;
-  return `${pad(now.getMonth() + 1)}${pad(now.getDate())}(${day})_${ampm}${pad(h12)}${pad(now.getMinutes())}`;
+  return `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${day}요일`;
 }
 
 function setupHeaderLine(now) {
-  return `<p class="setup-header">${escapeHtml(fmtSetupHeader(now))}</p>`;
+  const ampm = now.getHours() < 12 ? "오전" : "오후";
+  const h12 = now.getHours() % 12 || 12;
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  return `
+    <p class="setup-date">${escapeHtml(fmtSetupDate(now))}</p>
+    <p class="setup-time"><span class="setup-time__ampm">${escapeHtml(ampm)}</span> ${h12}시 ${mm}분</p>`;
 }
 
 /** 평일인데 집/회사 자체가 저장되어 있지 않은 경우 — Settings로 유도한다(대체 수단 없음). */
@@ -415,7 +417,23 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
       return;
     }
     if (act === "detail") {
-      setTrip({ destinationId: trip.destination.id, mode: selected()?.kind === "drive" ? "driving" : "transit" });
+      const patch = {
+        destinationId: trip.destination.id,
+        originId: trip.origin.id || null,
+        mode: selected()?.kind === "drive" ? "driving" : "transit",
+      };
+      // 홈에서 쓰던 시각 기준(출근=도착 목표 / 퇴근=출발 시각)을 경로 상세 화면에도 그대로 넘긴다 —
+      // 안 그러면 저기선 "지금 출발" 기준으로 다시 계산돼 홈에서 맞춘 시각과 어긋난다
+      if (trip.arriveBy) {
+        patch.timeMode = "arrive";
+        patch.arriveBy = fmtClock(trip.arriveBy);
+      } else if (isWeekday && trip.direction === "toHome") {
+        patch.timeMode = "depart";
+        patch.departAt = fmtClock(trip.planNow);
+      } else {
+        patch.timeMode = "now";
+      }
+      setTrip(patch);
       location.hash = "#/route";
       return;
     }

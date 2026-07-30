@@ -137,6 +137,9 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 
 .topbar__title { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; }
+.topbar__title [data-brand] { color: var(--c-ink-2); transition: color 0.3s ease; }
+.topbar[data-trip="ready"] .topbar__title [data-brand="ready"] { color: var(--c-primary); }
+.topbar[data-trip="go"] .topbar__title [data-brand="go"] { color: var(--c-danger); }
 
 .mode-switch {
   display: flex;
@@ -545,13 +548,27 @@ ul { margin: 0; padding: 0; list-style: none; }
 .option__dur { margin-left: auto; font-size: 20px; font-weight: 900; letter-spacing: -0.03em; }
 .option__desc { font-size: 12.5px; font-weight: 600; color: var(--c-ink-3); margin-top: 6px; line-height: 1.5; }
 
-/* ---------- 설정 화면(Ready 전): 한눈에 들어오는 큰 글씨 UI ---------- */
+/* ---------- 설정 화면(Ready 전): 굵기·크기 대비로 위계를 만드는 플랫 타이포그라피 ---------- */
 
-.setup-header {
-  font-size: 22px;
+.setup-date {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--c-ink-3);
+  letter-spacing: 0.01em;
+}
+.setup-time__ampm {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin-right: 1px;
+}
+.setup-time {
+  text-align: center;
+  font-size: 32px;
   font-weight: 900;
-  letter-spacing: -0.01em;
-  margin: 2px 0 18px;
+  letter-spacing: -0.02em;
+  margin: 2px 0 22px;
 }
 
 .dir-stack { display: flex; flex-direction: column; gap: 8px; }
@@ -560,35 +577,38 @@ ul { margin: 0; padding: 0; list-style: none; }
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   gap: 6px;
-  text-align: right;
+  text-align: center;
   border: 1.5px solid var(--c-line);
   border-radius: var(--r-lg);
-  padding: 14px 16px;
+  padding: 16px;
   background: var(--c-bg);
 }
 .dir-card[aria-pressed="true"] { border-color: var(--c-primary); background: var(--c-primary-weak); }
 .dir-card__route {
-  align-self: flex-start;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 400;
   color: var(--c-ink-3);
 }
-.dir-card__label { font-size: 22px; font-weight: 900; letter-spacing: -0.01em; }
+.dir-card__label { font-size: 28px; font-weight: 900; letter-spacing: -0.02em; }
 
 .setup-field-label {
-  font-size: 22px;
-  font-weight: 900;
-  letter-spacing: -0.01em;
-  margin-bottom: 10px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--c-ink-2);
+  margin-bottom: 6px;
 }
 
-.input--big {
-  height: 56px;
-  font-size: 26px;
-  font-weight: 800;
+.input--big[type="time"] {
+  height: 58px;
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
   text-align: center;
+  border-color: transparent;
+  background: var(--c-fill);
 }
 
 /* Ready → GO: 기존 메뉴가 위로 접혀 사라지고, 카운트다운 화면이 그 자리에서 나타난다 */

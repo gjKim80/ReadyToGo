@@ -54,20 +54,23 @@ async function resultScreen(root, ctx, destination) {
     const s = getState();
     const now = new Date();
     const origin = s.trip.originId ? getPlace(s.trip.originId) : await currentOrigin();
-    const arriveBy = s.trip.arriveBy ? nextOccurrence(s.trip.arriveBy, now) : null;
+    const timeMode = s.trip.timeMode || "now";
+    const arriveBy = timeMode === "arrive" && s.trip.arriveBy ? nextOccurrence(s.trip.arriveBy, now) : null;
+    const departTarget = timeMode === "depart" && s.trip.departAt ? nextOccurrence(s.trip.departAt, now) : null;
+    const planNow = departTarget && departTarget > now ? departTarget : now;
 
     const [plans, weather, destWeather] = await Promise.all([
       planTrip({
         origin,
         destination,
         arriveBy,
-        now,
+        now: planNow,
         bufferMin: s.settings.bufferMin,
         walkPace: s.settings.walkPace,
         prefer: s.trip.mode,
       }),
-      getWeather(origin, { now }),
-      getWeather(destination, { now }),
+      getWeather(origin, { now: planNow }),
+      getWeather(destination, { now: planNow }),
     ]);
 
     view.origin = origin;
@@ -83,6 +86,7 @@ async function resultScreen(root, ctx, destination) {
     const s = getState();
     const plan = selected();
     const fav = getPlace(destination.id)?.favorite;
+    const timeMode = s.trip.timeMode || "now";
 
     if (view.pickerOpen) {
       // 목적지 검색을 그 자리에서 바로 띄운다 — "변경" 누르고 별도 화면으로 넘어가지 않는다
@@ -135,13 +139,20 @@ async function resultScreen(root, ctx, destination) {
           <button class="seg__btn" data-mode="transit" aria-pressed="${s.trip.mode === "transit"}">🚇 대중교통</button>
           <button class="seg__btn" data-mode="driving" aria-pressed="${s.trip.mode === "driving"}">🚗 마이카</button>
         </div>
-        <div class="row" style="gap:8px;margin-top:10px">
-          <label class="field grow">
-            <span class="field__label">도착 희망 시각</span>
-            <input class="input" type="time" id="arriveBy" value="${escapeHtml(s.trip.arriveBy || "")}" />
-          </label>
-          <button class="btn btn--ghost" data-act="now" style="margin-top:22px">지금 출발</button>
+        <div class="seg" style="margin-top:10px">
+          <button class="seg__btn" data-time-mode="now" aria-pressed="${timeMode === "now"}">지금 출발</button>
+          <button class="seg__btn" data-time-mode="arrive" aria-pressed="${timeMode === "arrive"}">도착 희망</button>
+          <button class="seg__btn" data-time-mode="depart" aria-pressed="${timeMode === "depart"}">출발 희망</button>
         </div>
+        ${
+          timeMode !== "now"
+            ? `<label class="field" style="margin-top:10px">
+                 <span class="field__label">${timeMode === "arrive" ? "도착 희망 시각" : "출발 희망 시각"}</span>
+                 <input class="input" type="time" id="planTime"
+                        value="${escapeHtml((timeMode === "arrive" ? s.trip.arriveBy : s.trip.departAt) || "")}" />
+               </label>`
+            : ""
+        }
       </div>
 
       <div class="map" style="height:190px;margin-top:12px" id="route-map">
@@ -203,8 +214,16 @@ async function resultScreen(root, ctx, destination) {
     paint();
   });
 
-  delegate(root, "change", "#arriveBy", async (_e, el) => {
-    setTrip({ arriveBy: el.value || null });
+  delegate(root, "change", "#planTime", async (_e, el) => {
+    const timeMode = getState().trip.timeMode || "now";
+    if (timeMode === "arrive") setTrip({ arriveBy: el.value || null });
+    else if (timeMode === "depart") setTrip({ departAt: el.value || null });
+    await load();
+    paint();
+  });
+
+  delegate(root, "click", "[data-time-mode]", async (_e, el) => {
+    setTrip({ timeMode: el.dataset.timeMode });
     await load();
     paint();
   });
@@ -216,10 +235,6 @@ async function resultScreen(root, ctx, destination) {
       paint();
     } else if (act === "cancel-change") {
       view.pickerOpen = false;
-      paint();
-    } else if (act === "now") {
-      setTrip({ arriveBy: null });
-      await load();
       paint();
     } else if (act === "fav") {
       const next = toggleFavorite(destination.id);
@@ -233,7 +248,7 @@ async function resultScreen(root, ctx, destination) {
       const plan = selected();
       if (!plan) return;
       const result = await shareText(
-        buildShareText({ plan, destination, tone: getState().trip.arriveBy ? "plan" : "now" }),
+        buildShareText({ plan, destination, tone: (getState().trip.timeMode || "now") !== "now" ? "plan" : "now" }),
       );
       if (result === "copied") toast("공유 문구를 클립보드에 복사했어요");
       else if (result === "failed") toast("공유에 실패했어요");

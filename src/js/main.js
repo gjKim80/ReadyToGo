@@ -30,10 +30,15 @@ function syncChrome(path) {
     if (active) el.setAttribute("aria-current", "page");
   });
 
-  const mode = getState().mode;
+  const state = getState();
+  const mode = state.mode;
   $$(".mode-switch__btn[data-mode]").forEach((el) => {
     el.setAttribute("aria-selected", String(el.dataset.mode === mode));
   });
+
+  // 로고의 "Ready"/"Go" 글자를 실제 진행 상태에 맞춰 물들인다
+  const topbar = $(".topbar");
+  if (topbar) topbar.dataset.trip = state.trip.active ? "go" : "ready";
 }
 
 /** 뷰 컨테이너를 새 요소로 교체해 이전 화면의 이벤트 리스너를 함께 폐기한다. */
