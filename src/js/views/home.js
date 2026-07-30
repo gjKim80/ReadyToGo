@@ -135,13 +135,13 @@ function commuteMissingCard() {
 /* ---------- 설정 화면 (Ready를 누르기 전) ---------- */
 
 function renderSetup(root, ctx, state, now0, isWeekday, trip) {
-  let pickerOpen = !isWeekday ? false : trip.needsSetup === "destination";
+  let pickerOpen = isWeekday ? false : trip.needsSetup === "destination";
   let disposed = false;
   let pickerDispose = null;
 
   function paint() {
     const s = getState();
-    const destination = !isWeekday ? null : getPlace(s.trip.destinationId);
+    const destination = isWeekday ? null : getPlace(s.trip.destinationId);
 
     const weekdayBody = isWeekday
       ? `
@@ -212,7 +212,7 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
         }`
       : "";
 
-    const readyDisabled = !isWeekday ? false : !destination || pickerOpen;
+    const readyDisabled = isWeekday ? false : !destination || pickerOpen;
 
     root.innerHTML = `
       ${headerLine(now0, isWeekday)}
@@ -314,7 +314,7 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
         now: planNow,
         bufferMin: s.settings.bufferMin,
         walkPace: s.settings.walkPace,
-        prefer: isWeekday ? s.trip.mode : s.settings.preferredMode,
+        prefer: isWeekday ? s.settings.preferredMode : s.trip.mode,
       }),
       getWeather(trip.origin, { now }),
       getWeather(trip.destination, { now }),
