@@ -64,6 +64,10 @@ const DEFAULT_STATE = {
     mode: "transit",
     /** "HH:MM" 또는 null(=지금 출발) */
     arriveBy: null,
+    /** Ready를 눌러 카운트다운을 "시작"했는지 — 꺼지기 전까지 탭 전환/재실행에도 유지 */
+    active: false,
+    /** 평일 모드에서 active 상태로 고정된 방향. null이면 시간대 기준 자동판단 */
+    weekdayDirection: null,
   },
 };
 

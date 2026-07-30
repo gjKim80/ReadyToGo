@@ -1,6 +1,6 @@
 /** 앱 부트스트랩 — 해시 라우터, 모드 전환, 뷰 생명주기 */
 
-import { getState, setMode, setState, subscribe } from "./store.js";
+import { getState, setMode, setState, setTrip, subscribe } from "./store.js";
 import { applyIcons } from "./ui/icons.js";
 import { $, $$ } from "./util.js";
 
@@ -74,6 +74,9 @@ function bindChrome() {
     btn.addEventListener("click", () => {
       if (getState().mode === btn.dataset.mode) return;
       setMode(btn.dataset.mode);
+      // 다른 모드에서 "진행중"이던 상태가 그대로 넘어와 Ready 없이 바로 카운트다운으로
+      // 점프하지 않도록, 모드를 바꾸면 항상 설정 화면부터 다시 보여준다
+      setTrip({ active: false });
       syncChrome(parseHash().path);
       renderRoute();
     });

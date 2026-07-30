@@ -5,5 +5,5 @@
  * (배포 = git 커밋 + push 시점 기준으로 올린다)
  */
 
-export const APP_VERSION = "0.11.1";
-export const BUILD_TIME = "2026-07-29T15:52:07+09:00";
+export const APP_VERSION = "0.12.0";
+export const BUILD_TIME = "2026-07-30T17:37:04+09:00";

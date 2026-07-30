@@ -1,6 +1,5 @@
 /** 경로 — 목적지 검색/핀 지정, 이동수단 비교, 출발 시각 역산 결과 */
 
-import { getCurrentPosition, reverseGeocode, searchPlaces } from "../api/places.js";
 import { getWeather } from "../api/weather.js";
 import { planTrip } from "../core/departure.js";
 import { buildAdvice } from "../core/advice.js";
@@ -10,15 +9,14 @@ import {
   getPlace,
   getState,
   getWork,
-  listFavorites,
-  listHistory,
   pushHistory,
   setTrip,
   toggleFavorite,
   upsertPlace,
 } from "../store.js";
-import { openSheet, pinSvg, toast } from "../ui/components.js";
+import { toast } from "../ui/components.js";
 import { createMap } from "../ui/map.js";
+import { currentOrigin, mountPlacePicker } from "../ui/placePicker.js";
 import {
   adviceBanners,
   approachLine,
@@ -29,175 +27,16 @@ import {
   planNotes,
   tickCountdown,
 } from "../ui/parts.js";
-import { delegate, escapeHtml, fmtDistance, nextOccurrence } from "../util.js";
+import { delegate, escapeHtml, nextOccurrence } from "../util.js";
 
-let cachedOrigin = null;
-
-async function currentOrigin() {
-  if (cachedOrigin) return cachedOrigin;
-  const coord = await getCurrentPosition();
-  const geo = await reverseGeocode(coord);
-  cachedOrigin = { id: null, name: "현재 위치", address: geo.address, ...coord, icon: "📍" };
-  return cachedOrigin;
-}
-
-function placeRow(place, { action = "select" } = {}) {
-  return `
-    <button class="place" data-${action}="${escapeHtml(place.id)}">
-      <span class="place__mark">${place.icon || "📍"}</span>
-      <span class="grow" style="text-align:left">
-        <span class="place__name">${escapeHtml(place.name)}</span>
-        <span class="place__addr truncate" style="display:block">${escapeHtml(place.address || "")}</span>
-      </span>
-      ${place.distance ? `<span class="muted" style="font-size:12px;font-weight:700">${fmtDistance(place.distance)}</span>` : ""}
-    </button>`;
-}
-
-/* ---------- 검색 화면 ---------- */
+/* ---------- 검색 화면(목적지가 아직 없을 때) ---------- */
 
 function searchScreen(root, ctx) {
-  const favorites = listFavorites();
-  const history = listHistory();
-
-  root.innerHTML = `
-    <div class="row" style="gap:8px">
-      <input class="input grow" id="q" type="search" placeholder="목적지를 검색하세요 (예: 강남역)"
-             autocomplete="off" enterkeyhint="search" />
-    </div>
-    <button class="btn btn--ghost btn--block" data-act="pin" style="margin-top:8px">🗺️ 지도에서 핀으로 지정</button>
-
-    <div id="results" style="margin-top:16px"></div>
-
-    <div id="shortcuts">
-      ${
-        favorites.length
-          ? `<p class="section-title" style="margin-top:20px">⭐ 즐겨찾기</p>
-             <div class="card" style="padding:4px 12px">${favorites.map((p) => placeRow(p)).join("")}</div>`
-          : ""
-      }
-      ${
-        history.length
-          ? `<p class="section-title" style="margin-top:20px">최근 검색</p>
-             <div class="card" style="padding:4px 12px">${history.map((p) => placeRow(p)).join("")}</div>`
-          : ""
-      }
-      ${
-        !favorites.length && !history.length
-          ? `<p class="empty">검색하거나 지도에서 핀을 찍어<br />목적지를 지정해 보세요.</p>`
-          : ""
-      }
-    </div>`;
-
-  const input = root.querySelector("#q");
-  const results = root.querySelector("#results");
-  const shortcuts = root.querySelector("#shortcuts");
-  let timer = null;
-  let hits = [];
-
-  async function runSearch(keyword) {
-    if (!keyword.trim()) {
-      results.innerHTML = "";
-      shortcuts.hidden = false;
-      return;
-    }
-    shortcuts.hidden = true;
-    results.innerHTML = `<div class="card"><div class="skeleton" style="height:56px"></div></div>`;
-    const near = await currentOrigin();
-    hits = await searchPlaces(keyword, { near });
-    results.innerHTML = hits.length
-      ? `<div class="card" style="padding:4px 12px">${hits.map((p) => placeRow(p, { action: "hit" })).join("")}</div>`
-      : `<p class="empty">검색 결과가 없어요.<br />다른 키워드로 시도해 보세요.</p>`;
-  }
-
-  input.addEventListener("input", () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => runSearch(input.value), 250);
-  });
-  input.focus({ preventScroll: true });
-
-  function choose(place) {
-    const saved = upsertPlace(place);
-    pushHistory(saved.id);
-    setTrip({ destinationId: saved.id });
-    ctx.refresh?.();
-  }
-
-  delegate(root, "click", "[data-hit]", (_e, el) => {
-    const place = hits.find((p) => p.id === el.dataset.hit);
-    if (place) choose(place);
-  });
-
-  delegate(root, "click", "[data-select]", (_e, el) => {
-    const place = getPlace(el.dataset.select);
-    if (place) choose(place);
-  });
-
-  delegate(root, "click", '[data-act="pin"]', async () => {
-    const start = await currentOrigin();
-    openPinPicker(start, choose);
-  });
-
-  return () => clearTimeout(timer);
-}
-
-/** 지도 핀 드래그로 목적지를 지정하는 바텀시트 */
-function openPinPicker(start, onPick) {
-  let map = null;
-  let coord = { lat: start.lat, lng: start.lng };
-  let label = { name: "지도에서 선택한 위치", address: "" };
-  let geoTimer = null;
-
-  openSheet({
-    title: "지도에서 목적지 지정",
-    body: `
-      <div class="map" id="pick-map" style="height:280px">
-        <div class="map__pin">${pinSvg()}</div>
-        <span class="map__hint">지도를 끌어 핀을 맞추세요</span>
-      </div>
-      <div class="card" style="margin-top:12px">
-        <p style="font-size:15px;font-weight:800" id="pick-name">위치 확인 중…</p>
-        <p class="muted" style="font-size:12.5px;font-weight:600;margin-top:3px" id="pick-addr"></p>
-      </div>
-      <button class="btn btn--primary btn--block" style="margin-top:12px" id="pick-ok">이 위치로 목적지 설정</button>`,
-    onMount(el, close) {
-      const container = el.querySelector("#pick-map");
-      const nameEl = el.querySelector("#pick-name");
-      const addrEl = el.querySelector("#pick-addr");
-
-      async function refreshLabel(next) {
-        const geo = await reverseGeocode(next);
-        label = geo;
-        nameEl.textContent = geo.name;
-        addrEl.textContent = geo.address;
-      }
-
-      map = createMap(container, {
-        center: coord,
-        metersPerPixel: 1.8,
-        onChange(next) {
-          coord = next;
-          nameEl.textContent = "위치 확인 중…";
-          addrEl.textContent = `${next.lat.toFixed(5)}, ${next.lng.toFixed(5)}`;
-          clearTimeout(geoTimer);
-          geoTimer = setTimeout(() => refreshLabel(next), 220);
-        },
-      });
-      refreshLabel(coord);
-
-      el.querySelector("#pick-ok").addEventListener("click", () => {
-        close();
-        onPick({
-          name: label.name || "선택한 위치",
-          address: label.address || `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}`,
-          icon: label.icon || "📍",
-          lat: coord.lat,
-          lng: coord.lng,
-        });
-      });
-    },
-    onClose() {
-      clearTimeout(geoTimer);
-      map?.destroy();
+  return mountPlacePicker(root, {
+    onSelect(place) {
+      pushHistory(place.id);
+      setTrip({ destinationId: place.id });
+      ctx.refresh?.();
     },
   });
 }
@@ -205,8 +44,9 @@ function openPinPicker(start, onPick) {
 /* ---------- 결과 화면 ---------- */
 
 async function resultScreen(root, ctx, destination) {
-  const view = { plans: [], selectedId: null, weather: null, destWeather: null, origin: null, map: null };
+  const view = { plans: [], selectedId: null, weather: null, destWeather: null, origin: null, map: null, pickerOpen: false };
   let disposed = false;
+  let pickerDispose = null;
 
   root.innerHTML = `<div class="card"><div class="skeleton" style="height:220px"></div></div>`;
 
@@ -244,17 +84,43 @@ async function resultScreen(root, ctx, destination) {
     const plan = selected();
     const fav = getPlace(destination.id)?.favorite;
 
+    if (view.pickerOpen) {
+      // 목적지 검색을 그 자리에서 바로 띄운다 — "변경" 누르고 별도 화면으로 넘어가지 않는다
+      root.innerHTML = `
+        <div class="row row--between" style="margin-bottom:10px">
+          <p class="muted" style="font-size:12.5px;font-weight:700">
+            현재 목적지: ${escapeHtml(destination.name)}
+          </p>
+          <button class="btn btn--sm btn--ghost" data-act="cancel-change">취소</button>
+        </div>
+        <div id="picker-slot"></div>`;
+
+      pickerDispose?.();
+      pickerDispose = mountPlacePicker(root.querySelector("#picker-slot"), {
+        onSelect(place) {
+          pickerDispose?.();
+          pickerDispose = null;
+          pushHistory(place.id);
+          setTrip({ destinationId: place.id });
+          ctx.refresh?.();
+        },
+      });
+      return;
+    }
+
     root.innerHTML = `
       <div class="card">
-        <div class="row row--between">
-          <div class="grow">
-            <p style="font-size:17px;font-weight:800" class="truncate">${escapeHtml(destination.name)}</p>
-            <p class="muted truncate" style="font-size:12.5px;font-weight:600;margin-top:2px">
-              ${escapeHtml(destination.address || "")}
-            </p>
-          </div>
-          <button class="place__act" data-act="fav" aria-label="즐겨찾기">${fav ? "⭐" : "☆"}</button>
-          <button class="btn btn--sm btn--ghost" data-act="change">변경</button>
+        <div class="row row--between" style="gap:8px">
+          <button class="row grow" data-act="change" style="text-align:left;min-width:0">
+            <span class="grow" style="min-width:0">
+              <span style="display:block;font-size:17px;font-weight:800" class="truncate">${escapeHtml(destination.name)}</span>
+              <span class="muted truncate" style="display:block;font-size:12.5px;font-weight:600;margin-top:2px">
+                ${escapeHtml(destination.address || "")}
+              </span>
+            </span>
+            <span class="muted" style="font-size:12px;font-weight:700;flex:none">변경 ›</span>
+          </button>
+          <button class="place__act" data-act="fav" aria-label="즐겨찾기" style="flex:none">${fav ? "⭐" : "☆"}</button>
         </div>
       </div>
 
@@ -346,8 +212,11 @@ async function resultScreen(root, ctx, destination) {
   delegate(root, "click", "[data-act]", async (_e, el) => {
     const act = el.dataset.act;
     if (act === "change") {
-      setTrip({ destinationId: null });
-      ctx.refresh?.();
+      view.pickerOpen = true;
+      paint();
+    } else if (act === "cancel-change") {
+      view.pickerOpen = false;
+      paint();
     } else if (act === "now") {
       setTrip({ arriveBy: null });
       await load();
@@ -377,7 +246,8 @@ async function resultScreen(root, ctx, destination) {
 
   const refresher = setInterval(async () => {
     // 백그라운드 탭에서 계속 돌면 API 호출 한도만 축낸다 — 보이지 않을 땐 건너뛴다
-    if (disposed || document.hidden) return;
+    // 목적지 검색 중일 땐 입력 중인 화면을 갈아엎지 않는다
+    if (disposed || document.hidden || view.pickerOpen) return;
     await load();
     if (!disposed) paint();
   }, Math.max(20, getState().settings.autoRefreshSec) * 1000);
@@ -387,6 +257,7 @@ async function resultScreen(root, ctx, destination) {
     clearInterval(ticker);
     clearInterval(refresher);
     view.map?.destroy();
+    pickerDispose?.();
   };
 }
 

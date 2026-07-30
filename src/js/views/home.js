@@ -1,4 +1,4 @@
-/** 홈 — 평일/주말 모드별 출발 카운트다운, 날씨·준비물 가이드, 위젯 미리보기 */
+/** 홈 — 평일/주말 모드별 "설정 → Ready → Go" 흐름과 출발 카운트다운 */
 
 import { getWeather } from "../api/weather.js";
 import { getCurrentPosition, reverseGeocode } from "../api/places.js";
@@ -14,10 +14,12 @@ import {
   getWork,
   listFavorites,
   listPlaces,
+  pushHistory,
   setCommute,
   setTrip,
 } from "../store.js";
 import { toast } from "../ui/components.js";
+import { mountPlacePicker } from "../ui/placePicker.js";
 import {
   approachLine,
   countdownBlock,
@@ -35,6 +37,7 @@ import {
   fmtClock,
   fmtDateKo,
   nextOccurrence,
+  sleep,
 } from "../util.js";
 
 /** 세션 동안 유지되는 현재 위치 캐시 */
@@ -46,9 +49,6 @@ function buildTimeLabel() {
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-
-/** 사용자가 수동으로 뒤집은 평일 방향 (null이면 시간대 기준 자동) */
-let directionOverride = null;
 
 async function currentOrigin() {
   if (cachedOrigin) return cachedOrigin;
@@ -69,7 +69,7 @@ async function resolveTrip(state, now) {
 
     const arriveTarget = atTime(state.commute.arriveAt, now);
     const auto = now < arriveTarget ? "toWork" : "toHome";
-    const direction = directionOverride || auto;
+    const direction = state.trip.weekdayDirection || auto;
 
     if (direction === "toWork") {
       const arriveBy = arriveTarget > now ? arriveTarget : nextOccurrence(state.commute.arriveAt, now);
@@ -114,73 +114,192 @@ async function resolveTrip(state, now) {
   };
 }
 
-function setupCard(kind) {
-  const noPlacesAtAll = listPlaces().length === 0;
+function headerLine(now, isWeekday) {
+  return `<p class="section-title">${escapeHtml(fmtDateKo(now))} · ${isWeekday ? "평일 모드" : "주말 모드"}</p>`;
+}
 
-  if (kind === "commute") {
-    return `
-      <div class="card">
-        <p class="empty">${
-          noPlacesAtAll
-            ? "저장된 장소가 없어요.<br />집과 회사를 추가해주세요."
-            : "평일 모드를 쓰려면 집과 회사를 먼저 등록하세요."
-        }</p>
-        <a class="btn btn--primary btn--block" href="#/settings">출퇴근 경로 설정하기</a>
-      </div>`;
-  }
-  const favorites = listFavorites();
+/** 평일인데 집/회사 자체가 저장되어 있지 않은 경우 — Settings로 유도한다(대체 수단 없음). */
+function commuteMissingCard() {
+  const noPlacesAtAll = listPlaces().length === 0;
   return `
     <div class="card">
       <p class="empty">${
         noPlacesAtAll
-          ? "저장된 장소가 없어요.<br />장소를 추가하면 출발 시각을 역산해 드려요."
-          : "어디로 가시나요?<br />목적지를 정하면 출발 시각을 역산해 드려요."
+          ? "저장된 장소가 없어요.<br />집과 회사를 추가해주세요."
+          : "평일 모드를 쓰려면 집과 회사를 먼저 등록하세요."
       }</p>
-      <a class="btn btn--primary btn--block" href="#/route">목적지 검색하기</a>
-      ${
-        favorites.length
-          ? `<p class="section-title" style="margin:16px 0 8px">⭐ 즐겨찾기</p>
-             <div class="row" style="gap:8px;flex-wrap:wrap">
-               ${favorites
-                 .map(
-                   (p) =>
-                     `<button class="chip" data-quick="${escapeHtml(p.id)}">${p.icon || "📍"} ${escapeHtml(p.name)}</button>`,
-                 )
-                 .join("")}
-             </div>`
-          : ""
-      }
+      <a class="btn btn--primary btn--block" href="#/settings">출퇴근 경로 설정하기</a>
     </div>`;
 }
 
-export async function render(root, ctx = {}) {
-  const now0 = new Date();
-  const state = getState();
+/* ---------- 설정 화면 (Ready를 누르기 전) ---------- */
 
-  root.innerHTML = `
-    <p class="section-title">${escapeHtml(fmtDateKo(now0))} · ${state.mode === "weekday" ? "평일 모드" : "주말 모드"}</p>
-    <div class="card"><div class="skeleton" style="height:52px"></div></div>
-    <div class="card" style="margin-top:12px"><div class="skeleton" style="height:150px"></div></div>`;
+function renderSetup(root, ctx, state, now0, isWeekday, trip) {
+  let pickerOpen = !isWeekday ? false : trip.needsSetup === "destination";
+  let disposed = false;
+  let pickerDispose = null;
 
-  const trip = await resolveTrip(state, now0);
+  function paint() {
+    const s = getState();
+    const destination = !isWeekday ? null : getPlace(s.trip.destinationId);
 
-  if (trip.needsSetup) {
+    const weekdayBody = isWeekday
+      ? `
+        <p class="section-title" style="margin-top:20px">방향</p>
+        <div class="row" style="gap:8px">
+          <button class="option grow" data-dir="toWork" aria-pressed="${trip.direction === "toWork"}" style="text-align:center">
+            <span class="option__mode">🚪 출근</span>
+          </button>
+          <button class="option grow" data-dir="toHome" aria-pressed="${trip.direction === "toHome"}" style="text-align:center">
+            <span class="option__mode">🏠 퇴근</span>
+          </button>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="row row--between">
+            <span style="font-size:14.5px;font-weight:700">
+              ${trip.direction === "toWork" ? "회사 도착 목표" : "회사 출발 시각"}
+            </span>
+            <input
+              type="time"
+              class="input"
+              data-commute-quick="${trip.direction === "toWork" ? "arriveAt" : "leaveAt"}"
+              value="${escapeHtml(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)}"
+              style="height:36px;width:auto;min-width:0;padding:0 10px;font-size:14px;flex:none"
+            />
+          </div>
+          <p class="muted" style="font-size:12.5px;font-weight:600;margin-top:8px">
+            ${escapeHtml(trip.origin.name)} → ${escapeHtml(trip.destination.name)}
+          </p>
+        </div>`
+      : "";
+
+    const weekendBody = !isWeekday
+      ? `
+        <p class="section-title" style="margin-top:20px">목적지</p>
+        ${
+          pickerOpen
+            ? `<div id="picker-slot"></div>`
+            : `
+              <div class="card">
+                <button class="row row--between" data-act="open-picker" style="width:100%;text-align:left;gap:8px">
+                  <span class="grow" style="min-width:0">
+                    <span style="display:block;font-size:16px;font-weight:800" class="truncate">${escapeHtml(destination.name)}</span>
+                    <span class="muted truncate" style="display:block;font-size:12.5px;font-weight:600;margin-top:2px">
+                      ${escapeHtml(destination.address || "")}
+                    </span>
+                  </span>
+                  <span class="muted" style="font-size:12px;font-weight:700;flex:none">변경 ›</span>
+                </button>
+              </div>
+
+              <div class="card" style="padding:12px;margin-top:8px">
+                <div class="row row--between">
+                  <span style="font-size:13.5px;font-weight:700">도착 희망 시각</span>
+                  <div class="row" style="gap:8px">
+                    <input type="time" class="input" id="arriveBy" value="${escapeHtml(s.trip.arriveBy || "")}"
+                           style="height:36px;width:auto;min-width:0;padding:0 10px;font-size:14px" />
+                    <button class="btn btn--sm btn--ghost" data-act="now">지금 출발</button>
+                  </div>
+                </div>
+                <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:10px">
+                  <span class="muted" style="font-size:12.5px;font-weight:700">출발지</span>
+                  <button class="chip" data-origin="" aria-pressed="${!s.trip.originId}">📍 현재 위치</button>
+                  ${getHome() ? `<button class="chip" data-origin="${escapeHtml(getHome().id)}" aria-pressed="${s.trip.originId === getHome().id}">🏠 집</button>` : ""}
+                  ${getWork() ? `<button class="chip" data-origin="${escapeHtml(getWork().id)}" aria-pressed="${s.trip.originId === getWork().id}">🏢 회사</button>` : ""}
+                </div>
+              </div>`
+        }`
+      : "";
+
+    const readyDisabled = !isWeekday ? false : !destination || pickerOpen;
+
     root.innerHTML = `
-      <p class="section-title">${escapeHtml(fmtDateKo(now0))} · ${state.mode === "weekday" ? "평일 모드" : "주말 모드"}</p>
-      ${setupCard(trip.needsSetup)}`;
-    delegate(root, "click", "[data-quick]", (_e, el) => {
-      setTrip({ destinationId: el.dataset.quick });
-      ctx.refresh?.();
-    });
-    return () => {};
+      ${headerLine(now0, isWeekday)}
+      ${weekdayBody}
+      ${weekendBody}
+      ${
+        !pickerOpen
+          ? `<button class="btn btn--primary btn--block btn--ready" data-act="ready" style="margin-top:20px" ${readyDisabled ? "disabled" : ""}>
+               Ready
+             </button>`
+          : ""
+      }
+      <p class="muted" style="font-size:11px;font-weight:600;text-align:center;margin-top:28px">
+        ReadyToGo v${escapeHtml(APP_VERSION)} (dev) · ${escapeHtml(buildTimeLabel())} 업데이트
+      </p>`;
+
+    if (pickerOpen) {
+      pickerDispose?.();
+      pickerDispose = mountPlacePicker(root.querySelector("#picker-slot"), {
+        title: "어디로 가시나요?",
+        onSelect(place) {
+          pickerDispose?.();
+          pickerDispose = null;
+          pickerOpen = false;
+          pushHistory(place.id);
+          setTrip({ destinationId: place.id });
+          ctx.refresh?.();
+        },
+      });
+    }
   }
 
-  const view = {
-    plans: [],
-    selectedId: null,
-    weather: null,
-    destWeather: null,
+  paint();
+
+  delegate(root, "click", "[data-dir]", (_e, el) => {
+    if (state.trip.weekdayDirection === el.dataset.dir) return;
+    setTrip({ weekdayDirection: el.dataset.dir });
+    ctx.refresh?.();
+  });
+
+  delegate(root, "change", "[data-commute-quick]", (_e, el) => {
+    if (!el.value) return;
+    setCommute({ [el.dataset.commuteQuick]: el.value });
+    toast("출퇴근 시각을 저장했어요");
+    ctx.refresh?.();
+  });
+
+  delegate(root, "click", '[data-act="open-picker"]', () => {
+    pickerOpen = true;
+    paint();
+  });
+
+  delegate(root, "click", "[data-origin]", (_e, el) => {
+    setTrip({ originId: el.dataset.origin || null });
+    ctx.refresh?.();
+  });
+
+  delegate(root, "change", "#arriveBy", (_e, el) => {
+    setTrip({ arriveBy: el.value || null });
+    ctx.refresh?.();
+  });
+
+  delegate(root, "click", '[data-act="now"]', () => {
+    setTrip({ arriveBy: null });
+    ctx.refresh?.();
+  });
+
+  delegate(root, "click", '[data-act="ready"]', async (_e, el) => {
+    el.disabled = true;
+    el.textContent = "Go!";
+    el.classList.add("btn--ready--go");
+    await sleep(420);
+    if (disposed) return;
+    setTrip({ active: true });
+    ctx.refresh?.();
+  });
+
+  return () => {
+    disposed = true;
+    pickerDispose?.();
   };
+}
+
+/* ---------- 액티브 화면 (Ready → Go 이후 카운트다운) ---------- */
+
+async function renderActive(root, ctx, trip, now0, isWeekday) {
+  const view = { plans: [], selectedId: null, weather: null, destWeather: null };
 
   async function load() {
     const s = getState();
@@ -195,7 +314,7 @@ export async function render(root, ctx = {}) {
         now: planNow,
         bufferMin: s.settings.bufferMin,
         walkPace: s.settings.walkPace,
-        prefer: s.mode === "weekday" ? s.settings.preferredMode : s.trip.mode,
+        prefer: isWeekday ? s.trip.mode : s.settings.preferredMode,
       }),
       getWeather(trip.origin, { now }),
       getWeather(trip.destination, { now }),
@@ -215,10 +334,9 @@ export async function render(root, ctx = {}) {
     const s = getState();
     const plan = selected();
     const tips = buildAdvice(view.weather, view.destWeather, plan);
-    const isWeekday = s.mode === "weekday";
 
     root.innerHTML = `
-      <p class="section-title">${escapeHtml(fmtDateKo(new Date()))} · ${isWeekday ? "평일 모드" : "주말 모드"}</p>
+      ${headerLine(new Date(), isWeekday)}
 
       ${weatherAdviceRow(view.weather, trip.origin.name, tips)}
 
@@ -229,31 +347,8 @@ export async function render(root, ctx = {}) {
             <p class="muted truncate" style="font-size:12.5px;font-weight:600;margin-top:2px">
               ${escapeHtml(trip.origin.name)} → ${escapeHtml(trip.destination.name)}
             </p>
-            ${
-              isWeekday
-                ? `<div class="row" style="gap:6px;margin-top:6px;align-items:center">
-                     <span class="muted" style="font-size:12.5px;font-weight:600;white-space:nowrap">
-                       ${trip.direction === "toWork" ? "도착 목표" : "회사 출발"}
-                     </span>
-                     <input
-                       type="time"
-                       class="input"
-                       data-commute-quick="${trip.direction === "toWork" ? "arriveAt" : "leaveAt"}"
-                       value="${escapeHtml(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)}"
-                       style="height:32px;width:auto;min-width:0;padding:0 8px;font-size:13px;flex:none"
-                     />
-                   </div>`
-                : `<p class="muted" style="font-size:12.5px;font-weight:600;margin-top:2px">${escapeHtml(trip.subtitle)}</p>`
-            }
           </div>
-          ${
-            isWeekday
-              ? `<div class="mode-switch" style="flex:none">
-                   <button class="mode-switch__btn" data-dir="toWork" aria-selected="${trip.direction === "toWork"}">출근</button>
-                   <button class="mode-switch__btn" data-dir="toHome" aria-selected="${trip.direction === "toHome"}">퇴근</button>
-                 </div>`
-              : `<button class="btn btn--sm btn--ghost" data-act="change-dest" style="flex:none">변경</button>`
-          }
+          <button class="btn btn--sm btn--ghost" data-act="reset" style="flex:none">다시 설정</button>
         </div>
 
         ${plan ? countdownBlock(plan) : `<p class="empty">경로를 찾을 수 없습니다.</p>`}
@@ -284,30 +379,16 @@ export async function render(root, ctx = {}) {
     if (s.settings.notify) scheduleDepartureAlerts(plan, trip.destination.name);
   }
 
-  /* ---------- 이벤트 ---------- */
-
   delegate(root, "click", "[data-plan]", (_e, el) => {
     view.selectedId = el.dataset.plan;
     paint();
   });
 
-  delegate(root, "click", "[data-dir]", (_e, el) => {
-    if (directionOverride === el.dataset.dir) return;
-    directionOverride = el.dataset.dir;
-    ctx.refresh?.();
-  });
-
-  delegate(root, "change", "[data-commute-quick]", (_e, el) => {
-    if (!el.value) return;
-    setCommute({ [el.dataset.commuteQuick]: el.value });
-    toast("출퇴근 시각을 저장했어요");
-    ctx.refresh?.();
-  });
-
   delegate(root, "click", "[data-act]", async (_e, el) => {
     const act = el.dataset.act;
-    if (act === "change-dest") {
-      location.hash = "#/route";
+    if (act === "reset") {
+      setTrip({ active: false });
+      ctx.refresh?.();
       return;
     }
     if (act === "detail") {
@@ -324,8 +405,6 @@ export async function render(root, ctx = {}) {
       else if (result === "failed") toast("공유에 실패했어요");
     }
   });
-
-  /* ---------- 라이프사이클 ---------- */
 
   let disposed = false;
 
@@ -351,4 +430,32 @@ export async function render(root, ctx = {}) {
     clearInterval(refresher);
     clearAlerts();
   };
+}
+
+/* ---------- 진입점 ---------- */
+
+export async function render(root, ctx = {}) {
+  const now0 = new Date();
+  const state = getState();
+  const isWeekday = state.mode === "weekday";
+
+  root.innerHTML = `
+    ${headerLine(now0, isWeekday)}
+    <div class="card"><div class="skeleton" style="height:52px"></div></div>
+    <div class="card" style="margin-top:12px"><div class="skeleton" style="height:150px"></div></div>`;
+
+  const trip = await resolveTrip(state, now0);
+
+  if (trip.needsSetup === "commute") {
+    root.innerHTML = `${headerLine(now0, isWeekday)}${commuteMissingCard()}`;
+    return () => {};
+  }
+
+  // 목적지가 아예 없거나(주말) 아직 Ready를 안 눌렀으면 설정 화면
+  // 장소가 지워졌다 등으로 trip을 못 만드는데 active만 true로 남아있는 경우도 여기서 자연히 걸러진다
+  if (trip.needsSetup === "destination" || !state.trip.active) {
+    return renderSetup(root, ctx, state, now0, isWeekday, trip);
+  }
+
+  return renderActive(root, ctx, trip, now0, isWeekday);
 }
