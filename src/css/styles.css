@@ -159,23 +159,31 @@ ul { margin: 0; padding: 0; list-style: none; }
 /* Go 상태에선 로고 배지도 Ready(블루)의 정반대색인 --c-danger로 전환한다 */
 .topbar[data-trip="go"] .topbar__logo { background: var(--c-danger); }
 
-.topbar__title { font-size: 18px; font-weight: 900; letter-spacing: -0.01em; display: flex; align-items: baseline; }
+.topbar__title {
+  font-family: "Big Shoulders Text", var(--font-gothic);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: baseline;
+}
 .topbar__title [data-brand] {
   display: inline-block;
-  color: var(--c-ink-2);
+  color: var(--c-ink);
   font-size: 1em;
   transition: color 0.3s ease, font-size 0.3s ease;
 }
+.topbar__title [data-brand="to"] { font-weight: 400; color: var(--c-ink-2); }
 /* 지금 상태(Ready 대기 중 / Go 진행 중)를 색만이 아니라 크기로도 눈에 띄게 한다 */
 .topbar[data-trip="ready"] .topbar__title [data-brand="ready"] {
   color: var(--c-primary);
   font-size: 1.35em;
-  font-weight: 900;
+  font-weight: 800;
 }
 .topbar[data-trip="go"] .topbar__title [data-brand="go"] {
   color: var(--c-danger);
   font-size: 1.35em;
-  font-weight: 900;
+  font-weight: 800;
 }
 
 .mode-switch { display: flex; gap: 18px; height: 100%; }
@@ -630,6 +638,10 @@ body.onboarding-active .view {
   font-size: 12px;
 }
 
+.hero-time-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+.hero-time-row > .hero-time { grid-column: 2; justify-self: center; }
+.hero-time-row > .status-chip-slot,
+.hero-time-row > .status-chip { grid-column: 3; justify-self: end; }
 .hero-time { display: flex; align-items: baseline; gap: 8px; margin: 8px 0 12px; }
 .hero-time__ampm { font-size: 14px; font-weight: 700; color: var(--c-ink-2); }
 .hero-time__digits { font-size: 46px; font-weight: 700; color: var(--c-ink); letter-spacing: 0.01em; }
@@ -644,10 +656,11 @@ body.onboarding-active .view {
 }
 
 .status-chip-slot:empty { display: none; }
-.status-chip-slot { margin-bottom: 4px; }
 .status-chip {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
+  width: 120px;
   gap: 6px;
   padding: 6px 10px;
   border-radius: 7px;
@@ -678,7 +691,6 @@ body.onboarding-active .view {
 .route-row__title { font-size: 16px; font-weight: 700; color: #4b5162; }
 .route-row[aria-pressed="true"] .route-row__title { color: var(--c-ink); }
 
-.field-row { display: flex; align-items: center; justify-content: space-between; }
 .link-btn { font-size: 12px; font-weight: 700; color: var(--c-primary); }
 
 .field-value-input {
@@ -690,7 +702,7 @@ body.onboarding-active .view {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
-  font-size: 34px;
+  font-size: 46px;
   font-weight: 700;
   color: var(--c-ink);
 }
@@ -722,7 +734,13 @@ body.onboarding-active .view {
   flex: none;
 }
 .onboard-brand__logo svg { width: 12px; height: 12px; }
-.onboard-brand__title { font-size: 18px; font-weight: 900; letter-spacing: -0.01em; }
+.onboard-brand__title {
+  font-family: "Big Shoulders Text", var(--font-gothic);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.onboard-brand__to { font-weight: 400; color: var(--c-ink-2); }
 .onboard-dots { display: flex; gap: 6px; margin-bottom: 28px; }
 .onboard-welcome {
   display: block;

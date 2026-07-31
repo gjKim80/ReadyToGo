@@ -33,7 +33,7 @@ const DEFAULT_STATE = {
     /** 평일 출근: 회사 도착 희망 시각 */
     arriveAt: "09:00",
     /** 평일 퇴근: 회사에서 나서는 시각 */
-    leaveAt: "18:30",
+    leaveAt: "18:00",
   },
   places: [],
   history: [],

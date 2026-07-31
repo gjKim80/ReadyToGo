@@ -111,21 +111,31 @@ function headerLine(now, isWeekday) {
   return `<p class="section-title">${escapeHtml(fmtDateKo(now))} · ${isWeekday ? "평일 모드" : "주말 모드"}</p>`;
 }
 
+/** Date → {ampm, h12, mm} — 현재 시각/회사 출발 시각 등 모든 큰 시계 표시가 이 포맷을 공유한다 */
+function clock12Parts(date) {
+  return {
+    ampm: date.getHours() < 12 ? "오전" : "오후",
+    h12: date.getHours() % 12 || 12,
+    mm: String(date.getMinutes()).padStart(2, "0"),
+  };
+}
+
+/** clock12Parts 결과를 hero-time 마크업으로 — 현재 시각/회사 출발 시각이 항상 같은 스타일을 쓰게 한다 */
+function clockHtml({ ampm, h12, mm }) {
+  return `<span class="hero-time__ampm">${escapeHtml(ampm)}</span><span class="hero-time__digits mono-num">${h12}:${mm}</span>`;
+}
+
 /** "출발 보드" 히어로 — eyebrow "현재 시각" + 전광판 스타일 큰 시각(고정폭) + 오늘 날짜 */
 function heroTimeBlock(now) {
-  const ampm = now.getHours() < 12 ? "오전" : "오후";
-  const h12 = now.getHours() % 12 || 12;
-  const mm = String(now.getMinutes()).padStart(2, "0");
   return `
     <div class="hero-row">
       <span class="eyebrow">현재 시각</span>
       <span class="eyebrow eyebrow--muted">${escapeHtml(fmtDateKo(now))}</span>
     </div>
-    <p class="hero-time">
-      <span class="hero-time__ampm">${escapeHtml(ampm)}</span>
-      <span class="hero-time__digits mono-num">${h12}:${mm}</span>
-    </p>
-    <div id="status-chip-slot" class="status-chip-slot"></div>`;
+    <div class="hero-time-row">
+      <p class="hero-time">${clockHtml(clock12Parts(now))}</p>
+      <span id="status-chip-slot" class="status-chip-slot"></span>
+    </div>`;
 }
 
 /**
@@ -226,18 +236,20 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
           </button>
         </div>
 
-        <hr class="hairline" />
-
-        <div class="field-row">
-          <span class="field-label">${trip.direction === "toWork" ? "회사 도착 목표" : "회사 출발 시각"}</span>
-          <button class="link-btn" type="button" data-act="edit-time">변경</button>
-        </div>
-        <input
-          type="time"
-          class="field-value-input"
-          data-commute-quick="${trip.direction === "toWork" ? "arriveAt" : "leaveAt"}"
-          value="${escapeHtml(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)}"
-        />`
+        <span class="field-label">${trip.direction === "toWork" ? "회사 도착 목표" : "회사 출발 시각"}</span>
+        <div class="hero-time-row" style="position:relative">
+          <p class="hero-time">${clockHtml(clock12Parts(atTime(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)))}</p>
+          <button class="status-chip status-chip--ok" type="button" data-act="edit-time">
+            <span class="status-chip__dot" aria-hidden="true"></span>변경
+          </button>
+          <input
+            type="time"
+            class="field-value-input-native"
+            style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px"
+            data-commute-quick="${trip.direction === "toWork" ? "arriveAt" : "leaveAt"}"
+            value="${escapeHtml(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)}"
+          />
+        </div>`
       : "";
 
     const weekendBody = !isWeekday
@@ -261,13 +273,13 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
           pickerOpen
             ? ""
             : `
-              <hr class="hairline" />
-
-              <div class="field-row">
-                <span class="field-label">도착 희망 시각</span>
-                <button class="link-btn" type="button" data-act="now">지금 출발</button>
+              <span class="field-label">도착 희망 시각</span>
+              <div class="hero-time-row">
+                <input type="time" class="field-value-input grow" id="arriveBy" value="${escapeHtml(s.trip.arriveBy || "")}" />
+                <button class="status-chip status-chip--ok" type="button" data-act="now">
+                  <span class="status-chip__dot" aria-hidden="true"></span>지금 출발
+                </button>
               </div>
-              <input type="time" class="field-value-input" id="arriveBy" value="${escapeHtml(s.trip.arriveBy || "")}" />
 
               <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:16px">
                 <span class="eyebrow">출발지</span>
@@ -282,7 +294,6 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
 
     root.innerHTML = `
       ${heroTimeBlock(new Date())}
-      <hr class="hairline" />
       <div id="setup-collapse" class="setup-collapse">
         ${weekdayBody}
         ${weekendBody}
@@ -290,7 +301,7 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
       ${
         !pickerOpen
           ? `<button class="btn btn--primary btn--block btn--ready" data-act="ready" style="margin-top:26px" ${readyDisabled ? "disabled" : ""}>
-               Ready
+               READY
              </button>
              <p id="ready-subtext-slot" class="ready-subtext"></p>`
           : ""

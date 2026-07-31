@@ -19,7 +19,7 @@ const BRAND_HTML = `
         <line x1="12" y1="12" x2="17" y2="7" />
       </svg>
     </span>
-    <span class="onboard-brand__title">ReadyToGo</span>
+    <span class="onboard-brand__title">READY<span class="onboard-brand__to">to</span>GO</span>
   </div>`;
 
 const FOOTER_HTML = `
@@ -43,7 +43,7 @@ export async function render(root, ctx = {}) {
   // 마지막 단계에서 한 번에 커밋한다 — 중간에 "이전"으로 왔다갔다 해도 저장은 끝에서만 일어난다
   const draft = {
     arriveAt: "09:00",
-    leaveAt: "18:30",
+    leaveAt: "18:00",
     bufferMin: 5,
     walkPace: 1,
     preferredMode: "transit",
