@@ -2,8 +2,10 @@
 
 import {
   clearHistory,
+  getHome,
   getState,
   getPlace,
+  getWork,
   listFavorites,
   listHistory,
   listPlaces,
@@ -12,8 +14,10 @@ import {
   setState,
   setTrip,
   toggleFavorite,
+  upsertPlace,
 } from "../store.js";
 import { confirmSheet, openSheet, toast } from "../ui/components.js";
+import { mountPlacePicker } from "../ui/placePicker.js";
 import { delegate, escapeHtml } from "../util.js";
 
 function row(place, { home, work }) {
@@ -39,14 +43,56 @@ function row(place, { home, work }) {
     </li>`;
 }
 
+/** 집/회사는 목록 맨 위에 항상 고정 — 지정 안 됐으면 그 자리에서 바로 검색해서 지정한다 */
+function pinnedRow(slot, icon, label, place) {
+  if (place) {
+    return `
+      <button class="route-row" data-pinned-change="${slot}" aria-pressed="true">
+        <span class="route-row__bar" aria-hidden="true"></span>
+        <span class="route-row__body grow" style="min-width:0">
+          <span class="route-row__sub truncate">${icon} ${label}</span>
+          <span class="route-row__title truncate">${escapeHtml(place.name)}</span>
+        </span>
+        <span class="link-btn" style="flex:none;align-self:center">변경</span>
+      </button>`;
+  }
+  return `
+    <button class="route-row" data-pinned-change="${slot}" aria-pressed="false">
+      <span class="route-row__bar" aria-hidden="true"></span>
+      <span class="route-row__body grow" style="min-width:0">
+        <span class="route-row__sub">${icon} ${label}</span>
+        <span class="route-row__title" style="color:var(--c-ink-3)">설정 안 됨</span>
+      </span>
+      <span class="link-btn" style="flex:none;align-self:center">설정</span>
+    </button>`;
+}
+
 export async function render(root) {
+  let pickerSlot = null; // null | "home" | "work"
+  let pickerDispose = null;
+
   function paint() {
     const s = getState();
-    const favorites = listFavorites();
-    const history = listHistory().filter((p) => !p.favorite);
-    const shown = new Set([...favorites, ...history].map((p) => p.id));
+    const pinnedIds = new Set([s.homeId, s.workId].filter(Boolean));
+    const favorites = listFavorites().filter((p) => !pinnedIds.has(p.id));
+    const history = listHistory().filter((p) => !p.favorite && !pinnedIds.has(p.id));
+    const shown = new Set([...favorites.map((p) => p.id), ...history.map((p) => p.id), ...pinnedIds]);
     const others = listPlaces().filter((p) => !shown.has(p.id));
     const meta = { home: s.homeId, work: s.workId };
+
+    const pinnedSection = pickerSlot
+      ? `
+        <div class="row row--between" style="margin-bottom:8px">
+          <p class="section-title" style="margin:0">${pickerSlot === "home" ? "집" : "회사"} 설정</p>
+          <button class="btn btn--sm btn--ghost" data-act="cancel-pin">취소</button>
+        </div>
+        <div id="pinned-picker-slot"></div>`
+      : `
+        <p class="section-title">집 · 회사</p>
+        <div class="route-row-list">
+          ${pinnedRow("home", "🏠", "집", getHome())}
+          ${pinnedRow("work", "🏢", "회사", getWork())}
+        </div>`;
 
     root.innerHTML = `
       <div class="row row--between" style="margin-bottom:12px">
@@ -54,7 +100,9 @@ export async function render(root) {
         <a class="btn btn--sm btn--primary" href="#/route">+ 장소 추가</a>
       </div>
 
-      <p class="section-title">⭐ 즐겨찾기</p>
+      ${pinnedSection}
+
+      <p class="section-title" style="margin-top:20px">⭐ 즐겨찾기</p>
       <div class="card" style="padding:4px 12px">
         ${favorites.length ? `<ul>${favorites.map((p) => row(p, meta)).join("")}</ul>` : `<p class="empty">즐겨찾기한 장소가 없어요.<br />별표를 눌러 상단에 고정하세요.</p>`}
       </div>
@@ -73,9 +121,36 @@ export async function render(root) {
              <div class="card" style="padding:4px 12px"><ul>${others.map((p) => row(p, meta)).join("")}</ul></div>`
           : ""
       }`;
+
+    if (pickerSlot) {
+      const slot = pickerSlot;
+      pickerDispose?.();
+      pickerDispose = mountPlacePicker(root.querySelector("#pinned-picker-slot"), {
+        onSelect(place) {
+          const saved = upsertPlace(place);
+          if (!saved.favorite) toggleFavorite(saved.id);
+          setState(slot === "home" ? { homeId: saved.id } : { workId: saved.id });
+          pickerDispose?.();
+          pickerDispose = null;
+          pickerSlot = null;
+          paint();
+          toast(`${slot === "home" ? "집" : "회사"}으로 지정했어요`);
+        },
+      });
+    }
   }
 
   paint();
+
+  delegate(root, "click", "[data-pinned-change]", (_e, el) => {
+    pickerSlot = el.dataset.pinnedChange;
+    paint();
+  });
+
+  delegate(root, "click", '[data-act="cancel-pin"]', () => {
+    pickerSlot = null;
+    paint();
+  });
 
   delegate(root, "click", "[data-fav]", (_e, el) => {
     toggleFavorite(el.dataset.fav);
@@ -145,5 +220,7 @@ export async function render(root) {
     });
   });
 
-  return () => {};
+  return () => {
+    pickerDispose?.();
+  };
 }

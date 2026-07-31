@@ -1,6 +1,6 @@
 /** 앱 부트스트랩 — 해시 라우터, 모드 전환, 뷰 생명주기 */
 
-import { getState, setMode, setState, setTrip, subscribe } from "./store.js";
+import { getState, setMode, setTrip, subscribe } from "./store.js";
 import { applyIcons } from "./ui/icons.js";
 import { $, $$ } from "./util.js";
 
@@ -9,6 +9,7 @@ const ROUTES = {
   "/route": () => import("./views/route.js"),
   "/places": () => import("./views/places.js"),
   "/settings": () => import("./views/settings.js"),
+  "/onboarding": () => import("./views/onboarding.js"),
 };
 
 let cleanup = null;
@@ -39,6 +40,9 @@ function syncChrome(path) {
   // 로고의 "Ready"/"Go" 글자를 실제 진행 상태에 맞춰 물들인다
   const topbar = $(".topbar");
   if (topbar) topbar.dataset.trip = state.trip.active ? "go" : "ready";
+
+  // 온보딩 중엔 상단바/하단 탭을 숨겨 마법사에만 집중하게 한다
+  document.body.classList.toggle("onboarding-active", path === "/onboarding");
 }
 
 /** 뷰 컨테이너를 새 요소로 교체해 이전 화면의 이벤트 리스너를 함께 폐기한다. */
@@ -54,7 +58,14 @@ function freshViewRoot() {
 
 async function renderRoute() {
   const token = ++renderToken;
-  const { path, query } = parseHash();
+  let { path, query } = parseHash();
+
+  // 집/회사가 아직 없으면(최초 실행, 혹은 둘 다 지운 경우) 온보딩부터 보여준다
+  const needsOnboarding = !getState().homeId && !getState().workId;
+  if (needsOnboarding && path !== "/onboarding") {
+    path = "/onboarding";
+    history.replaceState(null, "", "#/onboarding");
+  }
 
   cleanup?.();
   cleanup = null;
@@ -102,10 +113,10 @@ function boot() {
   applyIcons(document);
   bindChrome();
 
-  // 첫 실행에는 요일에 맞는 모드를 자동 선택
+  // 온보딩을 마치기 전까지는(집/회사 미설정) 요일에 맞는 모드를 매번 자동 선택해둔다 —
+  // onboarded는 온보딩 마법사가 끝날 때 store.js에서 직접 true로 바뀐다
   if (!getState().onboarded) {
     setMode([0, 6].includes(new Date().getDay()) ? "weekend" : "weekday");
-    setState({ onboarded: true });
   }
 
   window.addEventListener("hashchange", renderRoute);

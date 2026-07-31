@@ -193,6 +193,15 @@ ul { margin: 0; padding: 0; list-style: none; }
   outline: none;
 }
 
+/* 온보딩 중엔 마법사에만 집중하도록 상단바/하단 탭을 숨긴다 */
+body.onboarding-active .topbar,
+body.onboarding-active .tabbar {
+  display: none;
+}
+body.onboarding-active .view {
+  padding: max(24px, env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
 .tabbar {
   position: fixed;
   bottom: 0;
@@ -671,6 +680,18 @@ ul { margin: 0; padding: 0; list-style: none; }
 
 .ready-subtext { font-size: 11.5px; color: var(--c-ink-3); text-align: center; margin-top: 10px; }
 .ready-subtext:empty { display: none; }
+
+/* ---------- 온보딩 마법사 ---------- */
+
+.onboard { display: flex; flex-direction: column; min-height: calc(100vh - 48px); }
+.onboard-dots { display: flex; gap: 6px; margin-bottom: 28px; }
+.onboard-dot { flex: 1; height: 3px; border-radius: 2px; background: var(--c-line); }
+.onboard-dot--active, .onboard-dot--done { background: var(--c-primary); }
+.onboard-body { flex: 1; }
+.onboard-title { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; margin-top: 6px; }
+.onboard-desc { font-size: 13px; font-weight: 500; color: var(--c-ink-2); line-height: 1.5; margin-top: 6px; }
+.onboard-actions { display: flex; gap: 8px; margin-top: 20px; }
+.onboard-actions .btn--ghost { flex: none; padding: 0 20px; }
 
 /* Ready → GO: 기존 메뉴가 위로 접혀 사라지고, 카운트다운 화면이 그 자리에서 나타난다 */
 .setup-collapse {

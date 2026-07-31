@@ -10,28 +10,7 @@ import { uid } from "./util.js";
 
 const STORAGE_KEY = "readytogo.v1";
 const HISTORY_LIMIT = 20;
-
-/** 첫 실행 시 시드되는 예시 장소 — 설정에서 언제든 변경 가능 */
-const SEED = {
-  home: {
-    id: "seed-home",
-    name: "집",
-    address: "서울 마포구 월드컵북로 400",
-    lat: 37.5683,
-    lng: 126.8974,
-    icon: "🏠",
-    favorite: true,
-  },
-  work: {
-    id: "seed-work",
-    name: "회사",
-    address: "서울 강남구 테헤란로 152",
-    lat: 37.5006,
-    lng: 127.0366,
-    icon: "🏢",
-    favorite: true,
-  },
-};
+const BACKUP_PREFIX = "RTG1:";
 
 const DEFAULT_STATE = {
   version: 1,
@@ -47,15 +26,16 @@ const DEFAULT_STATE = {
     notify: false,
     autoRefreshSec: 60,
   },
-  homeId: "seed-home",
-  workId: "seed-work",
+  /** 온보딩에서 채워지기 전까지는 비어있다 */
+  homeId: null,
+  workId: null,
   commute: {
     /** 평일 출근: 회사 도착 희망 시각 */
     arriveAt: "09:00",
     /** 평일 퇴근: 회사에서 나서는 시각 */
     leaveAt: "18:30",
   },
-  places: [SEED.home, SEED.work],
+  places: [],
   history: [],
   trip: {
     destinationId: null,
@@ -221,4 +201,63 @@ export function resetAll() {
   state = structuredClone(DEFAULT_STATE);
   persist();
   listeners.forEach((fn) => fn(state));
+}
+
+/* ---------- 다른 기기로 내보내기/가져오기 ---------- */
+/**
+ * 서버 계정이 없는 앱이라 실시간 동기화 대신, 저장된 장소·출퇴근 설정을 코드로 내보내고
+ * 다른 기기에서 그대로 붙여넣어 복원하는 방식을 쓴다. trip(진행 중 상태)·onboarded 여부처럼
+ * 기기별로 달라도 되는 값은 제외한다.
+ */
+
+function toBase64Utf8(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = "";
+  bytes.forEach((b) => {
+    binary += String.fromCharCode(b);
+  });
+  return btoa(binary);
+}
+
+function fromBase64Utf8(b64) {
+  const binary = atob(b64);
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+export function exportBackup() {
+  const payload = {
+    places: state.places,
+    homeId: state.homeId,
+    workId: state.workId,
+    commute: state.commute,
+    settings: state.settings,
+  };
+  return `${BACKUP_PREFIX}${toBase64Utf8(JSON.stringify(payload))}`;
+}
+
+/** 코드가 올바르지 않으면 던진다 — 호출부에서 사용자에게 메시지를 보여준다 */
+export function importBackup(code) {
+  const raw = String(code || "").trim();
+  const b64 = raw.startsWith(BACKUP_PREFIX) ? raw.slice(BACKUP_PREFIX.length) : raw;
+
+  let payload;
+  try {
+    payload = JSON.parse(fromBase64Utf8(b64));
+  } catch {
+    throw new Error("올바른 코드가 아니에요");
+  }
+  if (!payload || !Array.isArray(payload.places)) {
+    throw new Error("올바른 코드가 아니에요");
+  }
+
+  setState((s) => ({
+    ...s,
+    places: payload.places,
+    homeId: payload.homeId ?? null,
+    workId: payload.workId ?? null,
+    commute: { ...DEFAULT_STATE.commute, ...(payload.commute || {}) },
+    settings: { ...DEFAULT_STATE.settings, ...(payload.settings || {}) },
+    onboarded: true,
+  }));
 }

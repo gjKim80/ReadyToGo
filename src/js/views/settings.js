@@ -2,10 +2,13 @@
 
 import { config, getProxyStatus, isMock } from "../api/config.js";
 import { canNotify, clearAlerts, requestPermission } from "../core/notify.js";
+import { shareText } from "../core/share.js";
 import {
+  exportBackup,
   getHome,
   getState,
   getWork,
+  importBackup,
   listPlaces,
   resetAll,
   setCommute,
@@ -199,6 +202,15 @@ export async function render(root, ctx = {}) {
         </label>
       </div>
 
+      <p class="section-title" style="margin-top:20px">다른 기기와 동기화</p>
+      <div class="card stack">
+        <p class="muted" style="font-size:12px;font-weight:600;line-height:1.6">
+          계정 서버 없이, 저장된 장소·출퇴근 설정을 코드로 내보내고 다른 기기에서 붙여넣어 그대로 가져올 수 있어요.
+        </p>
+        <button class="btn btn--ghost btn--block" data-act="export">다른 기기로 내보내기</button>
+        <button class="btn btn--ghost btn--block" data-act="import">다른 기기에서 가져오기</button>
+      </div>
+
       <p class="section-title" style="margin-top:20px">앱</p>
       <div class="card stack">
         <button class="btn btn--ghost btn--block" data-act="update">최신 버전으로 업데이트</button>
@@ -285,6 +297,58 @@ export async function render(root, ctx = {}) {
   delegate(root, "click", "[data-prefer]", (_e, el) => {
     setSettings({ preferredMode: el.dataset.prefer });
     paint();
+  });
+
+  delegate(root, "click", '[data-act="export"]', () => {
+    const code = exportBackup();
+    openSheet({
+      title: "다른 기기로 내보내기",
+      body: `
+        <p class="muted" style="font-size:12.5px;font-weight:600;line-height:1.6;margin-bottom:10px">
+          아래 코드를 복사하거나 공유해서 다른 기기의 &lsquo;가져오기&rsquo;에 붙여넣으세요.
+          저장된 장소와 출퇴근 설정이 그대로 전달됩니다.
+        </p>
+        <textarea class="input" readonly rows="6"
+          style="height:auto;font-size:11px;font-family:var(--font-mono);resize:none" id="export-code"
+        >${escapeHtml(code)}</textarea>
+        <button class="btn btn--primary btn--block" style="margin-top:12px" data-act="copy-export">복사 · 공유하기</button>`,
+      onMount(body) {
+        body.querySelector('[data-act="copy-export"]').addEventListener("click", async () => {
+          const result = await shareText(code, "ReadyToGo 설정 코드");
+          if (result === "copied") toast("코드를 복사했어요");
+          else if (result === "shared") toast("공유했어요");
+          else if (result === "failed") toast("복사에 실패했어요");
+        });
+      },
+    });
+  });
+
+  delegate(root, "click", '[data-act="import"]', () => {
+    openSheet({
+      title: "다른 기기에서 가져오기",
+      body: `
+        <p class="muted" style="font-size:12.5px;font-weight:600;line-height:1.6;margin-bottom:10px">
+          다른 기기의 &lsquo;내보내기&rsquo;에서 받은 코드를 붙여넣으세요.
+          <b style="color:var(--c-danger)">이 기기의 저장된 장소와 설정을 덮어씁니다.</b>
+        </p>
+        <textarea class="input" rows="6"
+          style="height:auto;font-size:11px;font-family:var(--font-mono);resize:none" id="import-code"
+          placeholder="RTG1:..."></textarea>
+        <button class="btn btn--primary btn--block" style="margin-top:12px" data-act="apply-import">적용하기</button>`,
+      onMount(body, close) {
+        body.querySelector('[data-act="apply-import"]').addEventListener("click", () => {
+          const code = body.querySelector("#import-code").value;
+          try {
+            importBackup(code);
+            close();
+            toast("설정을 가져왔어요");
+            ctx.refresh?.();
+          } catch (err) {
+            toast(err.message || "올바른 코드가 아니에요");
+          }
+        });
+      },
+    });
   });
 
   delegate(root, "click", '[data-act="install"]', () => {
