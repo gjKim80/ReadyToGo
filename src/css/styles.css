@@ -158,10 +158,24 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .topbar__logo svg { width: 10px; height: 10px; }
 
-.topbar__title { font-size: 15px; font-weight: 900; letter-spacing: -0.01em; }
-.topbar__title [data-brand] { color: var(--c-ink-2); transition: color 0.3s ease; }
-.topbar[data-trip="ready"] .topbar__title [data-brand="ready"] { color: var(--c-primary); }
-.topbar[data-trip="go"] .topbar__title [data-brand="go"] { color: var(--c-danger); }
+.topbar__title { font-size: 15px; font-weight: 900; letter-spacing: -0.01em; display: flex; align-items: baseline; }
+.topbar__title [data-brand] {
+  display: inline-block;
+  color: var(--c-ink-2);
+  font-size: 1em;
+  transition: color 0.3s ease, font-size 0.3s ease;
+}
+/* 지금 상태(Ready 대기 중 / Go 진행 중)를 색만이 아니라 크기로도 눈에 띄게 한다 */
+.topbar[data-trip="ready"] .topbar__title [data-brand="ready"] {
+  color: var(--c-primary);
+  font-size: 1.35em;
+  font-weight: 900;
+}
+.topbar[data-trip="go"] .topbar__title [data-brand="go"] {
+  color: var(--c-danger);
+  font-size: 1.35em;
+  font-weight: 900;
+}
 
 .mode-switch { display: flex; gap: 18px; height: 100%; }
 
@@ -188,8 +202,9 @@ ul { margin: 0; padding: 0; list-style: none; }
 
 .view {
   flex: 1;
-  /* 탭바와 똑같이 안전영역(홈 인디케이터 등)만큼 더 띄워야 마지막 내용이 안 가려진다 */
-  padding: 16px 16px calc(var(--tabbar-h) + 24px + env(safe-area-inset-bottom, 0px));
+  /* 탭바와 똑같이 안전영역(홈 인디케이터 등)만큼 더 띄워야 마지막 내용이 안 가려진다 —
+     env()이 0을 주거나 아예 지원 안 되는 기기가 있어 최소 여백을 바닥으로 깐다 */
+  padding: 16px 16px calc(var(--tabbar-h) + 24px + max(12px, env(safe-area-inset-bottom, 0px)));
   outline: none;
 }
 
@@ -199,7 +214,7 @@ body.onboarding-active .tabbar {
   display: none;
 }
 body.onboarding-active .view {
-  padding: max(24px, env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: max(24px, env(safe-area-inset-top, 0px)) 20px calc(20px + max(12px, env(safe-area-inset-bottom, 0px)));
 }
 
 .tabbar {
@@ -209,10 +224,12 @@ body.onboarding-active .view {
   transform: translateX(-50%);
   width: 100%;
   max-width: var(--maxw);
-  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* 홈 인디케이터/제스처 바를 안전영역으로 인식 못 하는 기기가 있어 최소 여백을 바닥으로 깐다 */
+  height: calc(var(--tabbar-h) + max(12px, env(safe-area-inset-bottom, 0px)));
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  align-items: center;
   background: var(--c-bg);
   border-top: 1px solid var(--c-line);
   z-index: 30;
