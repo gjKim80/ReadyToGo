@@ -649,7 +649,7 @@ body.onboarding-active .view {
 
 .hairline { border: none; border-top: 1px solid var(--c-line); margin: 22px 0; }
 
-.route-row-list { border-top: 1px solid var(--c-line); border-bottom: 1px solid var(--c-line); padding: 4px 0; }
+.route-row-list { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--c-line); border-bottom: 1px solid var(--c-line); padding: 4px 0; }
 .route-row {
   width: 100%;
   display: flex;
