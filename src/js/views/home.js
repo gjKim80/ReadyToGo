@@ -6,7 +6,7 @@ import { planTrip } from "../core/departure.js";
 import { buildAdvice } from "../core/advice.js";
 import { buildShareText, shareText } from "../core/share.js";
 import { clearAlerts, scheduleDepartureAlerts } from "../core/notify.js";
-import { APP_VERSION, BUILD_TIME } from "../version.js";
+import { APP_VERSION, buildTimeLabel } from "../version.js";
 import {
   getHome,
   getPlace,
@@ -42,13 +42,6 @@ import {
 
 /** 세션 동안 유지되는 현재 위치 캐시 */
 let cachedOrigin = null;
-
-/** BUILD_TIME(ISO) → "2026.07.28 23:43" */
-function buildTimeLabel() {
-  const d = new Date(BUILD_TIME);
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 async function currentOrigin() {
   if (cachedOrigin) return cachedOrigin;
@@ -303,7 +296,7 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
           : ""
       }
       <p class="app-footer">
-        ReadyToGo v${escapeHtml(APP_VERSION)} (dev) · ${escapeHtml(buildTimeLabel())} 업데이트
+        ReadyToGo v${escapeHtml(APP_VERSION)} (dev) · ${escapeHtml(buildTimeLabel())} Update
       </p>`;
 
     if (pickerOpen) {
@@ -468,7 +461,7 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
       <!-- 홈 화면 위젯 미리보기: 실제 OS 위젯 연동 전까지 노출하지 않음 (widgetCard는 ui/parts.js에 남겨둠) -->
 
       <p class="app-footer">
-        ReadyToGo v${escapeHtml(APP_VERSION)} (dev) · ${escapeHtml(buildTimeLabel())} 업데이트
+        ReadyToGo v${escapeHtml(APP_VERSION)} (dev) · ${escapeHtml(buildTimeLabel())} Update
       </p>`;
 
     tickCountdown(root, plan);

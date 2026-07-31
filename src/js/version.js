@@ -5,5 +5,12 @@
  * (배포 = git 커밋 + push 시점 기준으로 올린다)
  */
 
-export const APP_VERSION = "0.19.0";
-export const BUILD_TIME = "2026-07-31T12:00:40+09:00";
+export const APP_VERSION = "0.20.0";
+export const BUILD_TIME = "2026-07-31T13:48:25+09:00";
+
+/** BUILD_TIME(ISO) → "2026.07.28 23:43" */
+export function buildTimeLabel() {
+  const d = new Date(BUILD_TIME);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}

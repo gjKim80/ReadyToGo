@@ -8,6 +8,20 @@ import { importBackup, setCommute, setSettings, setState, toggleFavorite, upsert
 import { openSheet, toast } from "../ui/components.js";
 import { mountPlacePicker } from "../ui/placePicker.js";
 import { delegate, escapeHtml } from "../util.js";
+import { APP_VERSION, buildTimeLabel } from "../version.js";
+
+const BRAND_HTML = `
+  <div class="onboard-brand">
+    <span class="onboard-brand__logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="#fff"><path d="M6 4l12 8-12 8z" /></svg>
+    </span>
+    <span class="onboard-brand__title">ReadyToGo</span>
+  </div>`;
+
+const FOOTER_HTML = `
+  <p class="app-footer">
+    ReadyToGo v${escapeHtml(APP_VERSION)} (dev) · ${escapeHtml(buildTimeLabel())} Update
+  </p>`;
 
 const PACE = [
   { value: 0.8, label: "느긋하게" },
@@ -43,12 +57,14 @@ export async function render(root, ctx = {}) {
   function shell(bodyHtml, { nextLabel = "다음" } = {}) {
     root.innerHTML = `
       <div class="onboard">
+        ${BRAND_HTML}
         ${progressDots()}
         <div class="onboard-body">${bodyHtml}</div>
         <div class="onboard-actions">
           ${stepIndex > 0 ? `<button class="btn btn--ghost" data-act="back">이전</button>` : ""}
           <button class="btn btn--primary grow" data-act="next">${escapeHtml(nextLabel)}</button>
         </div>
+        ${FOOTER_HTML}
       </div>`;
   }
 
@@ -61,6 +77,7 @@ export async function render(root, ctx = {}) {
       const isHome = step === "home";
       root.innerHTML = `
         <div class="onboard">
+          ${BRAND_HTML}
           ${progressDots()}
           ${
             isHome
@@ -75,6 +92,7 @@ export async function render(root, ctx = {}) {
             ${stepIndex > 0 ? `<button class="btn btn--ghost" data-act="back">이전</button>` : ""}
             ${isHome ? `<button class="btn btn--primary grow" style="text-align:center" data-act="import">다른 기기에 설정이 있어요</button>` : ""}
           </div>
+          ${FOOTER_HTML}
         </div>`;
       pickerDispose = mountPlacePicker(root.querySelector("#onboard-picker"), {
         onSelect(place) {

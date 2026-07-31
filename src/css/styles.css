@@ -701,6 +701,19 @@ body.onboarding-active .view {
 /* ---------- 온보딩 마법사 ---------- */
 
 .onboard { display: flex; flex-direction: column; min-height: calc(100vh - 48px); }
+.onboard-brand { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+.onboard-brand__logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--c-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.onboard-brand__logo svg { width: 10px; height: 10px; }
+.onboard-brand__title { font-size: 15px; font-weight: 900; letter-spacing: -0.01em; }
 .onboard-dots { display: flex; gap: 6px; margin-bottom: 28px; }
 .onboard-welcome {
   display: block;
