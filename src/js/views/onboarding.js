@@ -99,6 +99,7 @@ export async function render(root, ctx = {}) {
           ${FOOTER_HTML}
         </div>`;
       pickerDispose = mountPlacePicker(root.querySelector("#onboard-picker"), {
+        placeholder: isHome ? "집 위치를 검색하세요 (예: 서초래미안)" : "회사 위치를 검색하세요 (예: 강남파이낸스센터)",
         onSelect(place) {
           const saved = upsertPlace(place);
           if (!saved.favorite) toggleFavorite(saved.id);

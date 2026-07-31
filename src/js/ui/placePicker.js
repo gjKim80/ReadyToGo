@@ -100,17 +100,17 @@ function openPinPicker(start, onPick) {
 /**
  * container 안에 검색 UI 전체를 그리고 이벤트를 연결한다.
  * @param {HTMLElement} container
- * @param {{ onSelect: (place: object) => void, autofocus?: boolean, title?: string }} opts
+ * @param {{ onSelect: (place: object) => void, autofocus?: boolean, title?: string, placeholder?: string }} opts
  * @returns {() => void} dispose — 컨테이너를 다른 내용으로 교체하기 전에 호출
  */
-export function mountPlacePicker(container, { onSelect, autofocus = true, title = "" } = {}) {
+export function mountPlacePicker(container, { onSelect, autofocus = true, title = "", placeholder = "목적지를 검색하세요 (예: 강남역)" } = {}) {
   const favorites = listFavorites();
   const history = listHistory();
 
   container.innerHTML = `
     ${title ? `<p class="section-title" style="margin-top:0">${escapeHtml(title)}</p>` : ""}
     <div class="row" style="gap:8px">
-      <input class="input grow" id="q" type="search" placeholder="목적지를 검색하세요 (예: 강남역)"
+      <input class="input grow" id="q" type="search" placeholder="${escapeHtml(placeholder)}"
              autocomplete="off" enterkeyhint="search" />
     </div>
     <button class="btn btn--ghost btn--block" data-act="pin" style="margin-top:8px">🗺️ 지도에서 핀으로 지정</button>
