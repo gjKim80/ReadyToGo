@@ -690,6 +690,7 @@ body.onboarding-active .view {
   font-weight: 700;
   color: var(--c-primary);
   line-height: 1.5;
+  text-align: center;
   margin-bottom: 20px;
 }
 .onboard-dot { flex: 1; height: 3px; border-radius: 2px; background: var(--c-line); }
