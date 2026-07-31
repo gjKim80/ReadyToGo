@@ -686,13 +686,19 @@ body.onboarding-active .view {
 .onboard { display: flex; flex-direction: column; min-height: calc(100vh - 48px); }
 .onboard-dots { display: flex; gap: 6px; margin-bottom: 28px; }
 .onboard-welcome {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--c-primary);
-  line-height: 1.5;
+  display: block;
+  width: 100%;
+  background: var(--c-primary);
+  color: #fff;
+  font-size: 19px;
+  font-weight: 300;
+  line-height: 1.6;
   text-align: center;
+  padding: 24px 18px;
+  border-radius: var(--r-lg);
   margin-bottom: 20px;
 }
+.onboard-welcome b { font-weight: 900; }
 .onboard-dot { flex: 1; height: 3px; border-radius: 2px; background: var(--c-line); }
 .onboard-dot--active, .onboard-dot--done { background: var(--c-primary); }
 .onboard-body { flex: 1; }

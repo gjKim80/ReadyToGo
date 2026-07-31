@@ -64,7 +64,7 @@ export async function render(root, ctx = {}) {
           ${progressDots()}
           ${
             isHome
-              ? `<p class="onboard-welcome">👋 처음 오셨군요!! 반가워요!!<br />몇 가지만 알려주시면 ReadyToGo가<br />매일 늦지 않게 딱 맞춰 챙겨드릴게요!!</p>`
+              ? `<p class="onboard-welcome">👋 처음 오셨군요!! 반가워요!!<br />몇 가지만 알려주시면 <b>ReadyToGo</b>가<br />매일 늦지 않게 딱 맞춰 챙겨드릴게요!!</p>`
               : ""
           }
           <p class="eyebrow">${isHome ? "집" : "회사"} 위치</p>
