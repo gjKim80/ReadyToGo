@@ -410,6 +410,17 @@ body.onboarding-active .view {
 }
 .banner--compact .banner__emoji { font-size: 16px; flex: none; }
 .banner--compact + .banner--compact { margin-top: 6px; }
+/* 날씨 옆 추천카드는 주의/위험 등급일 때 눈에 확 띄도록 레드 배경에 화이트 글씨로 강조한다 */
+.banner--compact.banner--warn,
+.banner--compact.banner--danger {
+  background: var(--c-danger);
+  border-color: var(--c-danger);
+  color: #fff;
+}
+.banner--compact.banner--warn .banner__text,
+.banner--compact.banner--danger .banner__text {
+  color: #fff;
+}
 
 /* ---------- Weather strip ---------- */
 
