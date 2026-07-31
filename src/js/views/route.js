@@ -113,24 +113,23 @@ async function resultScreen(root, ctx, destination) {
     }
 
     root.innerHTML = `
-      <div class="card">
-        <div class="row row--between" style="gap:8px">
-          <button class="row grow" data-act="change" style="text-align:left;min-width:0">
-            <span class="grow" style="min-width:0">
-              <span style="display:block;font-size:17px;font-weight:800" class="truncate">${escapeHtml(destination.name)}</span>
-              <span class="muted truncate" style="display:block;font-size:12.5px;font-weight:600;margin-top:2px">
-                ${escapeHtml(destination.address || "")}
-              </span>
+      <div class="route-row-list">
+        <div class="row" style="align-items:stretch;gap:8px">
+          <button class="route-row grow" data-act="change" aria-pressed="true" style="align-items:center">
+            <span class="route-row__bar" aria-hidden="true"></span>
+            <span class="route-row__body grow" style="min-width:0">
+              <span class="route-row__sub truncate">${escapeHtml(destination.address || "목적지")}</span>
+              <span class="route-row__title truncate">${escapeHtml(destination.name)}</span>
             </span>
-            <span class="muted" style="font-size:12px;font-weight:700;flex:none">변경 ›</span>
+            <span class="link-btn" style="flex:none;align-self:center">변경</span>
           </button>
           <button class="place__act" data-act="fav" aria-label="즐겨찾기" style="flex:none">${fav ? "⭐" : "☆"}</button>
         </div>
       </div>
 
-      <div class="card" style="padding:12px">
+      <div class="card" style="padding:12px;margin-top:12px">
         <div class="row" style="gap:6px;flex-wrap:wrap">
-          <span class="muted" style="font-size:12.5px;font-weight:700">출발지</span>
+          <span class="eyebrow">출발지</span>
           <button class="chip" data-origin="" aria-pressed="${!s.trip.originId}">📍 현재 위치</button>
           ${getHome() ? `<button class="chip" data-origin="${escapeHtml(getHome().id)}" aria-pressed="${s.trip.originId === getHome().id}">🏠 집</button>` : ""}
           ${getWork() ? `<button class="chip" data-origin="${escapeHtml(getWork().id)}" aria-pressed="${s.trip.originId === getWork().id}">🏢 회사</button>` : ""}
@@ -146,11 +145,11 @@ async function resultScreen(root, ctx, destination) {
         </div>
         ${
           timeMode !== "now"
-            ? `<label class="field" style="margin-top:10px">
-                 <span class="field__label">${timeMode === "arrive" ? "도착 희망 시각" : "출발 희망 시각"}</span>
-                 <input class="input" type="time" id="planTime"
+            ? `<div style="margin-top:12px">
+                 <span class="field-label">${timeMode === "arrive" ? "도착 희망 시각" : "출발 희망 시각"}</span>
+                 <input class="field-value-input" type="time" id="planTime"
                         value="${escapeHtml((timeMode === "arrive" ? s.trip.arriveBy : s.trip.departAt) || "")}" />
-               </label>`
+               </div>`
             : ""
         }
       </div>
@@ -170,7 +169,9 @@ async function resultScreen(root, ctx, destination) {
       <div class="row" style="gap:8px;margin-top:12px">
         <button class="btn btn--primary grow" data-act="share">🔗 ETA 공유</button>
         <button class="btn btn--ghost grow" data-act="pin-home">홈에 고정</button>
-      </div>`;
+      </div>
+
+      <p class="app-footer">ReadyToGo · 경로 상세</p>`;
 
     tickCountdown(root, plan);
     drawMap(plan);

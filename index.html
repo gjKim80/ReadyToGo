@@ -9,6 +9,13 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="./assets/icon-apple-180.png" />
+  <!-- PC/폰마다 OS 기본 글꼴로 다르게 보이지 않도록, 지정한 글꼴을 직접 로드해서 기기 상관없이 동일하게 렌더링한다 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
   <link rel="stylesheet" href="./src/css/styles.css" />
 </head>
 <body>

@@ -39,12 +39,14 @@
   --topbar-h: 56px;
   --maxw: 480px;
 
-  --font-gothic: "Pretendard", "Pretendard Variable", -apple-system,
-    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Segoe UI",
-    system-ui, sans-serif;
-  /* "전광판" 숫자 — 시스템에 있는 고정폭 폰트만 사용, 별도 웹폰트 로드 없음 */
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo,
-    Consolas, monospace;
+  /* PC/폰마다 OS 기본 글꼴이 달라 디자인이 다르게 보이는 걸 막기 위해, 웹폰트를 직접 로드해서
+     기기와 상관없이 항상 같은 글꼴이 먼저 적용되게 한다(index.html의 <link>로 로드). 뒤쪽은
+     네트워크 실패 등 로드가 안 될 때만 쓰이는 최후 대비책. */
+  --font-gothic: "Noto Sans KR", -apple-system, "Apple SD Gothic Neo",
+    "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
+  /* "전광판" 숫자 — JetBrains Mono를 직접 로드, 실패 시에만 시스템 고정폭 폰트로 대체 */
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code",
+    "Roboto Mono", Menlo, Consolas, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -245,8 +247,10 @@ ul { margin: 0; padding: 0; list-style: none; }
 .stack-lg > * + * { margin-top: 16px; }
 
 .section-title {
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--c-ink-3);
   margin-bottom: 8px;
   padding-left: 2px;
@@ -387,7 +391,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   align-items: center;
   gap: 14px;
 }
-.weather__temp { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; }
+.weather__temp { font-family: var(--font-mono); font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .weather__meta { font-size: 13px; font-weight: 600; color: var(--c-ink-2); line-height: 1.55; }
 .weather__glyph { width: 46px; height: 46px; flex: none; }
 
@@ -417,14 +421,16 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 
 .countdown__time {
+  font-family: var(--font-mono);
   font-size: 60px;
   line-height: 1.05;
-  font-weight: 900;
-  letter-spacing: -0.045em;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
   margin: 6px 0 2px;
 }
-.countdown__time small { font-size: 24px; font-weight: 800; margin-left: 2px; }
+.countdown__time small { font-family: var(--font-gothic); font-size: 24px; font-weight: 800; margin-left: 2px; }
 .countdown--urgent .countdown__time { color: var(--c-danger); }
 .countdown--soon .countdown__time { color: var(--c-warn); }
 .countdown--late .countdown__time { color: var(--c-danger); font-size: 42px; }
@@ -481,7 +487,7 @@ ul { margin: 0; padding: 0; list-style: none; }
 
 .leg__title { font-size: 14.5px; font-weight: 700; }
 .leg__sub { font-size: 12.5px; font-weight: 600; color: var(--c-ink-3); margin-top: 2px; }
-.leg__dur { margin-left: auto; font-size: 14px; font-weight: 800; white-space: nowrap; }
+.leg__dur { font-family: var(--font-mono); margin-left: auto; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ---------- Line badge (노선 컬러 + 번호, 지하철/버스 이모지 대체) ---------- */
 
@@ -567,7 +573,7 @@ ul { margin: 0; padding: 0; list-style: none; }
 .option[aria-pressed="true"] { border-color: var(--c-primary); background: var(--c-primary-weak); }
 .option__head { display: flex; align-items: baseline; gap: 8px; }
 .option__mode { font-size: 15px; font-weight: 800; }
-.option__dur { margin-left: auto; font-size: 20px; font-weight: 900; letter-spacing: -0.03em; }
+.option__dur { font-family: var(--font-mono); margin-left: auto; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .option__desc { font-size: 12.5px; font-weight: 600; color: var(--c-ink-3); margin-top: 6px; line-height: 1.5; }
 
 /* ---------- 설정 화면(Ready 전): "출발 보드(Departure Board)" 리스킨 ---------- */
@@ -655,7 +661,13 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .field-value-input:focus { outline: none; }
 /* 네이티브 시계 아이콘 대신 "변경" 텍스트 링크로 편집 진입점을 통일한다 */
-.field-value-input::-webkit-calendar-picker-indicator { display: none; }
+.field-value-input::-webkit-calendar-picker-indicator {
+  display: none;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
 
 .ready-subtext { font-size: 11.5px; color: var(--c-ink-3); text-align: center; margin-top: 10px; }
 .ready-subtext:empty { display: none; }

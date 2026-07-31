@@ -207,7 +207,7 @@ export async function render(root, ctx = {}) {
           모든 데이터 초기화
         </button>
       </div>
-      <p class="muted" style="font-size:11.5px;font-weight:600;text-align:center;margin-top:16px">
+      <p class="app-footer">
         ReadyToGo v${escapeHtml(APP_VERSION)} · 저장 데이터는 이 브라우저에만 보관됩니다
       </p>`;
 
