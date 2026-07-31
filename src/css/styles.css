@@ -685,6 +685,13 @@ body.onboarding-active .view {
 
 .onboard { display: flex; flex-direction: column; min-height: calc(100vh - 48px); }
 .onboard-dots { display: flex; gap: 6px; margin-bottom: 28px; }
+.onboard-welcome {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-primary);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
 .onboard-dot { flex: 1; height: 3px; border-radius: 2px; background: var(--c-line); }
 .onboard-dot--active, .onboard-dot--done { background: var(--c-primary); }
 .onboard-body { flex: 1; }

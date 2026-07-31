@@ -62,6 +62,11 @@ export async function render(root, ctx = {}) {
       root.innerHTML = `
         <div class="onboard">
           ${progressDots()}
+          ${
+            isHome
+              ? `<p class="onboard-welcome">👋 처음 오셨군요!! 반가워요!!<br />몇 가지만 알려주시면 ReadyToGo가<br />매일 늦지 않게 딱 맞춰 챙겨드릴게요!!</p>`
+              : ""
+          }
           <p class="eyebrow">${isHome ? "집" : "회사"} 위치</p>
           <p class="onboard-title">${isHome ? "집 위치를 알려주세요" : "회사 위치를 알려주세요"}</p>
           <p class="onboard-desc">${isHome ? "출근 경로 계산에 사용해요." : "퇴근 경로 계산에 사용해요."}</p>
