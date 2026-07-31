@@ -163,7 +163,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   font-family: "Big Shoulders Text", var(--font-gothic);
   font-size: 20px;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.03em;
   display: flex;
   align-items: baseline;
 }
@@ -173,7 +173,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   font-size: 1em;
   transition: color 0.3s ease, font-size 0.3s ease;
 }
-.topbar__title [data-brand="to"] { font-weight: 400; color: var(--c-ink-2); }
+.topbar__title [data-brand="to"] { font-weight: 600; color: var(--c-ink-2); }
 /* 지금 상태(Ready 대기 중 / Go 진행 중)를 색만이 아니라 크기로도 눈에 띄게 한다 */
 .topbar[data-trip="ready"] .topbar__title [data-brand="ready"] {
   color: var(--c-primary);
@@ -751,9 +751,9 @@ body.onboarding-active .view {
   font-family: "Big Shoulders Text", var(--font-gothic);
   font-size: 20px;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.03em;
 }
-.onboard-brand__to { font-weight: 400; color: var(--c-ink-2); }
+.onboard-brand__to { font-weight: 600; color: var(--c-ink-2); }
 .onboard-dots { display: flex; gap: 6px; margin-bottom: 28px; }
 .onboard-welcome {
   display: block;

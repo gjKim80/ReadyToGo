@@ -19,7 +19,7 @@ const BRAND_HTML = `
         <line x1="12" y1="12" x2="17" y2="7" />
       </svg>
     </span>
-    <span class="onboard-brand__title">READY<span class="onboard-brand__to">to</span>GO</span>
+    <span class="onboard-brand__title">READY<span class="onboard-brand__to">TO</span>GO</span>
   </div>`;
 
 const FOOTER_HTML = `
