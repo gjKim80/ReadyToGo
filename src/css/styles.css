@@ -639,10 +639,23 @@ body.onboarding-active .view {
 }
 
 .hero-time-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
-.hero-time-row > .hero-time { grid-column: 2; justify-self: center; }
+.hero-time-row > .hero-time,
+.hero-time-row > .hero-time-tap { grid-column: 2; justify-self: center; }
 .hero-time-row > .status-chip-slot,
 .hero-time-row > .status-chip { grid-column: 3; justify-self: end; }
 .hero-time { display: flex; align-items: baseline; gap: 8px; margin: 8px 0 12px; }
+/* 큰 시각 숫자 위에 진짜 <input type="time">를 투명하게 겹쳐, 탭하면 바로 기기 네이티브
+   시간 선택기가 뜨게 한다 — showPicker()는 사파리 등 일부 브라우저가 지원하지 않아
+   버튼 클릭만으로는 못 여는 경우가 있어서, 이 오버레이가 항상 동작하는 대안이 된다 */
+.hero-time-tap { position: relative; display: inline-block; }
+.hero-time-tap .field-value-input-native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
 .hero-time__ampm { font-size: 14px; font-weight: 700; color: var(--c-ink-2); }
 .hero-time__digits { font-size: 46px; font-weight: 700; color: var(--c-ink); letter-spacing: 0.01em; }
 
@@ -716,7 +729,7 @@ body.onboarding-active .view {
   pointer-events: none;
 }
 
-.ready-subtext { font-size: 11.5px; color: var(--c-ink-3); text-align: center; margin-top: 10px; }
+.ready-subtext { font-size: 17px; font-weight: 700; color: var(--c-primary); text-align: center; margin-top: 10px; }
 .ready-subtext:empty { display: none; }
 
 /* ---------- 온보딩 마법사 ---------- */

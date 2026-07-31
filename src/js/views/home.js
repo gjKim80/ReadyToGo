@@ -237,18 +237,19 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
         </div>
 
         <span class="field-label">${trip.direction === "toWork" ? "회사 도착 목표" : "회사 출발 시각"}</span>
-        <div class="hero-time-row" style="position:relative">
-          <p class="hero-time">${clockHtml(clock12Parts(atTime(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)))}</p>
+        <div class="hero-time-row">
+          <span class="hero-time-tap">
+            <p class="hero-time">${clockHtml(clock12Parts(atTime(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)))}</p>
+            <input
+              type="time"
+              class="field-value-input-native"
+              data-commute-quick="${trip.direction === "toWork" ? "arriveAt" : "leaveAt"}"
+              value="${escapeHtml(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)}"
+            />
+          </span>
           <button class="status-chip status-chip--ok" type="button" data-act="edit-time">
             <span class="status-chip__dot" aria-hidden="true"></span>변경
           </button>
-          <input
-            type="time"
-            class="field-value-input-native"
-            style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px"
-            data-commute-quick="${trip.direction === "toWork" ? "arriveAt" : "leaveAt"}"
-            value="${escapeHtml(trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt)}"
-          />
         </div>`
       : "";
 
@@ -450,6 +451,12 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
             </p>
           </div>
           <button class="btn btn--sm btn--ghost" data-act="reset" style="flex:none">다시 설정</button>
+          <input
+            type="time"
+            id="active-time-edit"
+            style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px"
+            value="${escapeHtml(isWeekday ? (trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt) : s.trip.arriveBy || "")}"
+          />
         </div>
 
         ${plan ? countdownBlock(plan) : `<p class="empty">경로를 찾을 수 없습니다.</p>`}
@@ -485,11 +492,23 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
     paint();
   });
 
+  delegate(root, "change", "#active-time-edit", (_e, el) => {
+    if (!el.value) return;
+    if (isWeekday) {
+      setCommute({ [trip.direction === "toWork" ? "arriveAt" : "leaveAt"]: el.value });
+    } else {
+      setTrip({ arriveBy: el.value });
+    }
+    toast("시간을 변경했어요");
+    ctx.refresh?.();
+  });
+
   delegate(root, "click", "[data-act]", async (_e, el) => {
     const act = el.dataset.act;
     if (act === "reset") {
-      setTrip({ active: false });
-      ctx.refresh?.();
+      const input = root.querySelector("#active-time-edit");
+      if (input?.showPicker) input.showPicker();
+      else input?.focus();
       return;
     }
     if (act === "detail") {
