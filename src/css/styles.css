@@ -10,14 +10,12 @@
   --c-primary-weak: #eaf1fe;
   --c-primary-ink: #0d3fa8;
 
-  /* Semantic */
-  --c-rain: #2a8ce0;
+  /* Semantic — 앱 전체는 브랜드 블루 + 이 레드 두 가지만 쓴다.
+     rain-weak/ok-weak는 UI 색이 아니라 지도 지형(공원/수변) 틴트로만 남겨둔다. */
   --c-rain-weak: #e4f2fb;
-  --c-warn: #e08a2e;
-  --c-warn-weak: #fceedd;
-  --c-danger: #e0483c;
+  /* --c-primary의 HSL(H≈220°)에서 색상만 0°로 뒤집은 정반대색 — Ready→Go 전환의 강한 대비용 */
+  --c-danger: #e01212;
   --c-danger-weak: #fdeceb;
-  --c-ok: #1e8e5a;
   --c-ok-weak: #e4f5ea;
 
   /* Neutral */
@@ -55,7 +53,7 @@
     --c-primary-weak: #17233a;
     --c-primary-ink: #a8c7fa;
     --c-rain-weak: #12242f;
-    --c-warn-weak: #2c2113;
+    --c-danger: #f04d4d;
     --c-danger-weak: #2e1917;
     --c-ok-weak: #12271d;
     --c-ink: #f1f2f4;
@@ -144,21 +142,24 @@ ul { margin: 0; padding: 0; list-style: none; }
   border-bottom: 1px solid var(--c-line);
 }
 
-.topbar__brand { display: flex; align-items: center; gap: 8px; }
+.topbar__brand { display: flex; align-items: center; gap: 10px; }
 
 .topbar__logo {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
   background: var(--c-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   flex: none;
+  transition: background-color 0.3s ease;
 }
-.topbar__logo svg { width: 10px; height: 10px; }
+.topbar__logo svg { width: 12px; height: 12px; }
+/* Go 상태에선 로고 배지도 Ready(블루)의 정반대색인 --c-danger로 전환한다 */
+.topbar[data-trip="go"] .topbar__logo { background: var(--c-danger); }
 
-.topbar__title { font-size: 15px; font-weight: 900; letter-spacing: -0.01em; display: flex; align-items: baseline; }
+.topbar__title { font-size: 18px; font-weight: 900; letter-spacing: -0.01em; display: flex; align-items: baseline; }
 .topbar__title [data-brand] {
   display: inline-block;
   color: var(--c-ink-2);
@@ -390,8 +391,8 @@ body.onboarding-active .view {
   line-height: 1.45;
 }
 .banner__emoji { font-size: 18px; line-height: 1.2; }
-.banner--rain { background: var(--c-rain-weak); color: var(--c-rain); border-color: currentColor; }
-.banner--warn { background: var(--c-warn-weak); color: var(--c-warn); border-color: currentColor; }
+.banner--rain { background: var(--c-primary-weak); color: var(--c-primary-ink); border-color: currentColor; }
+.banner--warn { background: var(--c-danger-weak); color: var(--c-danger); border-color: currentColor; }
 .banner--cold { background: var(--c-primary-weak); color: var(--c-primary-ink); border-color: var(--c-primary); }
 .banner--info { background: var(--c-fill); color: var(--c-ink-2); }
 .banner--danger { background: var(--c-danger-weak); color: var(--c-danger); border-color: currentColor; }
@@ -455,12 +456,11 @@ body.onboarding-active .view {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
   margin: 6px 0 2px;
+  color: var(--c-danger);
 }
 .countdown__time small { font-family: var(--font-gothic); font-size: 24px; font-weight: 800; margin-left: 2px; }
-.countdown--urgent .countdown__time { color: var(--c-danger); }
-.countdown--soon .countdown__time { color: var(--c-warn); }
-.countdown--late .countdown__time { color: var(--c-danger); font-size: 42px; }
-.countdown--eta .countdown__time { font-size: 40px; color: var(--c-primary); }
+.countdown--late .countdown__time { font-size: 42px; }
+.countdown--eta .countdown__time { font-size: 40px; }
 
 .countdown__depart {
   font-size: 15px;
@@ -476,9 +476,7 @@ body.onboarding-active .view {
   overflow: hidden;
   margin-top: 14px;
 }
-.progress__bar { height: 100%; background: var(--c-primary); border-radius: 999px; }
-.countdown--urgent .progress__bar, .countdown--late .progress__bar { background: var(--c-danger); }
-.countdown--soon .progress__bar { background: var(--c-warn); }
+.progress__bar { height: 100%; background: var(--c-danger); border-radius: 999px; }
 
 /* ---------- Route breakdown ---------- */
 
@@ -506,8 +504,8 @@ body.onboarding-active .view {
   border: 2.5px solid var(--c-line);
 }
 .leg[data-kind="walk"]::before { border-color: var(--c-ink-3); }
-.leg[data-kind="wait"]::before { border-color: var(--c-warn); }
-.leg[data-kind="bus"]::before { border-color: var(--c-ok); }
+.leg[data-kind="wait"]::before { border-color: var(--c-danger); }
+.leg[data-kind="bus"]::before { border-color: var(--c-primary); }
 .leg[data-kind="subway"]::before { border-color: var(--c-primary); }
 .leg[data-kind="drive"]::before { border-color: var(--c-primary); }
 
@@ -646,8 +644,8 @@ body.onboarding-active .view {
   font-weight: 700;
 }
 .status-chip__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
-.status-chip--ok { background: var(--c-ok-weak); color: var(--c-ok); }
-.status-chip--warn { background: var(--c-warn-weak); color: var(--c-warn); }
+.status-chip--ok { background: var(--c-primary-weak); color: var(--c-primary-ink); }
+.status-chip--warn { background: var(--c-danger-weak); color: var(--c-danger); }
 
 .hairline { border: none; border-top: 1px solid var(--c-line); margin: 22px 0; }
 
@@ -701,19 +699,19 @@ body.onboarding-active .view {
 /* ---------- 온보딩 마법사 ---------- */
 
 .onboard { display: flex; flex-direction: column; min-height: calc(100vh - 48px); }
-.onboard-brand { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+.onboard-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
 .onboard-brand__logo {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
   background: var(--c-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   flex: none;
 }
-.onboard-brand__logo svg { width: 10px; height: 10px; }
-.onboard-brand__title { font-size: 15px; font-weight: 900; letter-spacing: -0.01em; }
+.onboard-brand__logo svg { width: 12px; height: 12px; }
+.onboard-brand__title { font-size: 18px; font-weight: 900; letter-spacing: -0.01em; }
 .onboard-dots { display: flex; gap: 6px; margin-bottom: 28px; }
 .onboard-welcome {
   display: block;
@@ -764,8 +762,8 @@ body.onboarding-active .view {
   color: var(--c-ink-2);
 }
 .badge--live { background: var(--c-danger-weak); color: var(--c-danger); }
-.badge--ok { background: var(--c-ok-weak); color: var(--c-ok); }
-.badge--warn { background: var(--c-warn-weak); color: var(--c-warn); }
+.badge--ok { background: var(--c-primary-weak); color: var(--c-primary-ink); }
+.badge--warn { background: var(--c-danger-weak); color: var(--c-danger); }
 
 .live-dot {
   display: inline-block;

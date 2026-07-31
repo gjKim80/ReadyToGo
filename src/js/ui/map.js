@@ -92,7 +92,7 @@ function createNaverMap(container, options = {}) {
         polyline = new maps.Polyline({
           map,
           path: path.map(([lat, lng]) => new maps.LatLng(lat, lng)),
-          strokeColor: "#1B64DA",
+          strokeColor: "#1257E0",
           strokeWeight: 5,
           strokeLineCap: "round",
           strokeLineJoin: "round",
@@ -229,7 +229,7 @@ function createCanvasMap(container, options = {}) {
 
     // 경로 폴리라인
     if (state.route?.length > 1) {
-      ctx.strokeStyle = readVar("--c-primary", "#1B64DA");
+      ctx.strokeStyle = readVar("--c-primary", "#1257E0");
       ctx.lineWidth = 5;
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
@@ -247,7 +247,7 @@ function createCanvasMap(container, options = {}) {
       const p = toScreen(marker);
       ctx.beginPath();
       ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
-      ctx.fillStyle = marker.color || readVar("--c-primary", "#1B64DA");
+      ctx.fillStyle = marker.color || readVar("--c-primary", "#1257E0");
       ctx.fill();
       ctx.lineWidth = 3;
       ctx.strokeStyle = readVar("--c-bg", "#FFFFFF");

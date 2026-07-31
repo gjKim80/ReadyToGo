@@ -163,7 +163,7 @@ function planDriving(route, { now, arriveBy, bufferSec }) {
     kind: "drive",
     label: "마이카",
     icon: "🚗",
-    color: "#1B64DA",
+    color: "#1257E0",
     live: true,
     legs,
     totalSec,
