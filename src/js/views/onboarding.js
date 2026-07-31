@@ -73,7 +73,7 @@ export async function render(root, ctx = {}) {
           <div id="onboard-picker" style="margin-top:16px"></div>
           <div class="onboard-actions">
             ${stepIndex > 0 ? `<button class="btn btn--ghost" data-act="back">이전</button>` : ""}
-            ${isHome ? `<button class="btn btn--ghost grow" data-act="import">다른 기기에 설정이 있어요</button>` : ""}
+            ${isHome ? `<button class="btn btn--primary grow" style="text-align:center" data-act="import">다른 기기에 설정이 있어요</button>` : ""}
           </div>
         </div>`;
       pickerDispose = mountPlacePicker(root.querySelector("#onboard-picker"), {
