@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = resolve(HERE, "..", "assets");
 
-const BG = [0x1b, 0x64, 0xda];
+const BG = [0x12, 0x57, 0xe0];
 const FG = [0xff, 0xff, 0xff];
 
 /* ---------- PNG 인코딩 ---------- */
