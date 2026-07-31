@@ -13,7 +13,11 @@ import { APP_VERSION, buildTimeLabel } from "../version.js";
 const BRAND_HTML = `
   <div class="onboard-brand">
     <span class="onboard-brand__logo" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="#fff"><path d="M6 4l12 8-12 8z" /></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round">
+        <circle cx="12" cy="12" r="7" />
+        <line x1="12" y1="12" x2="12" y2="6" />
+        <line x1="12" y1="12" x2="16" y2="8" />
+      </svg>
     </span>
     <span class="onboard-brand__title">ReadyToGo</span>
   </div>`;

@@ -2,7 +2,7 @@
  * PWA용 PNG 아이콘 생성기 (의존성 없음).
  * 실행: node tools/make-icons.mjs
  *
- * assets/icon.svg와 동일한 디자인(파란 배경 + 흰 핀)을 3x 슈퍼샘플링으로 래스터화한다.
+ * assets/icon.svg와 동일한 디자인(파란 배경 + 흰 시계)을 3x 슈퍼샘플링으로 래스터화한다.
  */
 
 import { deflateSync } from "node:zlib";
@@ -67,21 +67,29 @@ function encodePng(width, height, rgba) {
 
 const inCircle = (x, y, cx, cy, r) => (x - cx) ** 2 + (y - cy) ** 2 <= r * r;
 
-/** 위쪽 원 + 아래로 뾰족한 삼각형으로 이루어진 핀 */
-function inPin(x, y) {
-  const cx = 0.5;
-  const cy = 0.42;
-  const r = 0.2;
-  if (inCircle(x, y, cx, cy, r)) return true;
-  // 삼각형: (cx±r*0.78, cy+r*0.45) — (cx, 0.84)
-  const top = cy + r * 0.45;
-  if (y < top || y > 0.84) return false;
-  const t = (y - top) / (0.84 - top);
-  const halfWidth = r * 0.78 * (1 - t);
-  return Math.abs(x - cx) <= halfWidth;
+/** 점(x,y)과 선분(x1,y1)-(x2,y2) 사이 최단 거리 */
+function distToSegment(x, y, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  let t = lenSq ? ((x - x1) * dx + (y - y1) * dy) / lenSq : 0;
+  t = Math.max(0, Math.min(1, t));
+  const px = x1 + t * dx;
+  const py = y1 + t * dy;
+  return Math.hypot(x - px, y - py);
 }
 
-const inHole = (x, y) => inCircle(x, y, 0.5, 0.42, 0.082);
+/** 시계 테두리(링) + 시침/분침 두 개로 이루어진 시계 모양 */
+function inClock(x, y) {
+  const cx = 0.5;
+  const cy = 0.5;
+  const r = 0.2917;
+  const half = 0.0339;
+  if (Math.abs(Math.hypot(x - cx, y - cy) - r) <= half) return true;
+  if (distToSegment(x, y, cx, cy, 0.5, 0.276) <= half) return true;
+  if (distToSegment(x, y, cx, cy, 0.6667, 0.3594) <= half) return true;
+  return false;
+}
 
 /** 둥근 모서리 정사각형 (maskable 대응 위해 전체를 배경으로 채움) */
 function inRounded(x, y, radius = 0.22) {
@@ -108,7 +116,7 @@ function renderIcon(size, { rounded }) {
           samples += 1;
           if (rounded && !inRounded(x, y)) continue;
           bg += 1;
-          if (inPin(x, y) && !inHole(x, y)) fg += 1;
+          if (inClock(x, y)) fg += 1;
         }
       }
 
