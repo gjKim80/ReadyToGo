@@ -132,8 +132,10 @@ export function tickCountdown(root, plan, now = new Date(), normalLabel) {
     timeEl.innerHTML = `${pad2(m)}:${pad2(s)}`;
   }
 
-  box.querySelector("[data-cd-label]").textContent =
-    level === "normal" && normalLabel ? normalLabel : URGENCY_LABEL[level];
+  const isMoodLabel = level === "normal" && !!normalLabel;
+  const labelEl = box.querySelector("[data-cd-label]");
+  labelEl.classList.toggle("countdown__label--mood", isMoodLabel);
+  labelEl.textContent = isMoodLabel ? `"${normalLabel}"` : URGENCY_LABEL[level];
 
   const arriveAt = plan.arriveAt;
   box.querySelector("[data-cd-depart]").innerHTML =

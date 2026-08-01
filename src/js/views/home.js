@@ -401,10 +401,59 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
 
 /* ---------- 액티브 화면 (Ready → Go 이후 카운트다운) ---------- */
 
+// 평일 카운트다운 라벨을 방향별 기분으로 랜덤하게 — 출근은 가기 싫은 마음, 퇴근은 신난 마음
+const WORK_MOOD_LABELS = [
+  "무거운 발걸음 떼기까지",
+  "이불 밖 탈출 성공까지",
+  "현실 자각 타임까지",
+  "오늘도 출근 강행까지",
+  "사원증 목에 걸기까지",
+  "월급 벌러 가기까지",
+  "커피 수혈 완료까지",
+  "출근길 눈물 닦기까지",
+  "지각 방어 출발까지",
+  "오늘 하루치 버티기까지",
+  "사회인 코스프레 시작까지",
+  "오늘의 노동 개시까지",
+  "정신줄 부여잡기까지",
+  "자본주의 출근까지",
+  "억지 미소 장착까지",
+  "출근길 한숨 3회까지",
+  "오늘도 을의 자세까지",
+  "월급루팡 출근까지",
+  "지옥철 탑승까지",
+  "오늘 하루 시작 버튼까지",
+];
+const HOME_MOOD_LABELS = [
+  "퇴근 버튼 누르기까지",
+  "자유의 문 열기까지",
+  "소파와 재회하기까지",
+  "오늘 고생 끝나기까지",
+  "야근 탈출 성공까지",
+  "집으로 순간이동까지",
+  "침대 다이빙까지",
+  "저녁 메뉴 고민 시작까지",
+  "행복 회로 가동까지",
+  "오늘의 미션 클리어까지",
+  "퇴근각 완성까지",
+  "오늘도 살아남기 성공까지",
+  "상사 안녕히 가세요까지",
+  "자유 시민 복귀까지",
+  "넷플릭스 접속까지",
+  "치맥 소환까지",
+  "오늘의 해방까지",
+  "사복 갈아입기까지",
+  "집밥 냄새 맡기까지",
+  "오늘의 엔딩크레딧까지",
+];
+const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
 async function renderActive(root, ctx, trip, now0, isWeekday) {
   const view = { plans: [], selectedId: null, weather: null, destWeather: null };
-  // 퇴근 중엔 "문 앞 출발까지"가 어색하다 — 나서는 곳은 집이 아니라 회사니까
-  const countdownNormalLabel = isWeekday && trip.direction === "toHome" ? "회사 문을 나서기" : undefined;
+  // 평일 출퇴근일 때만 방향별 기분 문구를 랜덤으로 뽑는다 — 주말 여행 모드는 기존 기본 문구 그대로
+  const countdownNormalLabel = isWeekday
+    ? pickRandom(trip.direction === "toHome" ? HOME_MOOD_LABELS : WORK_MOOD_LABELS)
+    : undefined;
 
   async function load() {
     const s = getState();
