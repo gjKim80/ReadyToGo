@@ -259,14 +259,41 @@ export function approachLine(plan) {
 
 /**
  * 도착 정보 스트립 (대중교통 플랜 전용).
- * 실시간 도착을 제공하는 소스일 때만 '실시간' 배지를 달고,
+ * 지하철은 탑승 예정 열차를 중심으로 앞뒤 2대씩(급행/일반 포함) 보여줘서
+ * "이 차를 놓치면/한 대 일찍 타면"을 바로 판단할 수 있게 한다.
+ * 버스는 실시간 도착을 제공하는 소스일 때만 '실시간' 배지를 달고,
  * 배차간격으로 계산한 예정 시각은 그렇게 표시한다.
  */
 export function liveArrivals(plan) {
-  const arrivals = plan.meta?.nextArrivals;
+  const isSubway = plan.kind === "subway";
+  const arrivals = isSubway ? plan.meta?.boardingWindow : plan.meta?.nextArrivals;
   if (!arrivals?.length) return "";
   const line = plan.meta.itinerary.line;
   const isLive = arrivals.some((a) => a.live);
+
+  const chips = isSubway
+    ? arrivals
+        .map((a) => {
+          const rel = a.isChosen ? "탑승 예정" : a.inSec >= 0 ? `${fmtDur(a.inSec)} 후` : `${fmtDur(-a.inSec)} 전`;
+          // express가 undefined면 배차간격 추정 열차라 급행/일반을 알 수 없다는 뜻 — 태그를 생략한다
+          const tag =
+            a.express === undefined
+              ? ""
+              : `<span class="arrival-chip__tag${a.express ? " arrival-chip__tag--express" : ""}">${a.express ? "급행" : "일반"}</span>`;
+          return `
+            <span class="arrival-chip${a.isChosen ? " arrival-chip--chosen" : ""}">
+              <span class="arrival-chip__time">${fmtClock(a.at)}</span>
+              ${tag}
+              <span class="arrival-chip__rel">${rel}</span>
+            </span>`;
+        })
+        .join("")
+    : arrivals
+        .map((a) => {
+          const detail = a.label || a.crowdingLabel;
+          return `<span class="chip">${fmtDur(a.inSec)} 후${detail ? ` · ${escapeHtml(detail)}` : ""}</span>`;
+        })
+        .join("");
 
   return `
     <div class="card" style="padding:13px 14px">
@@ -278,22 +305,16 @@ export function liveArrivals(plan) {
             : `<span class="badge badge--warn">배차 기준 예정</span>`
         }
       </div>
-      <div class="row" style="gap:8px;flex-wrap:wrap">
-        ${arrivals
-          .map((a) => {
-            const detail = a.label || a.crowdingLabel;
-            return `<span class="chip">${fmtDur(a.inSec)} 후${detail ? ` · ${escapeHtml(detail)}` : ""}</span>`;
-          })
-          .join("")}
-      </div>
+      <div class="row" style="gap:8px;flex-wrap:wrap">${chips}</div>
     </div>`;
 }
 
 /** 이동수단 후보 카드
  * @param {boolean} showDetailCta 카드 안에 "경로 상세 →" 바로가기를 보여줄지 — 이미 경로
  *   상세 화면(route.js)에서 쓰는 경우엔 "지금 보고 있는 화면으로 다시 가기"가 되어
- *   의미가 없으므로 false로 끈다. */
-export function optionCard(plan, { selected = false, showDetailCta = true } = {}) {
+ *   의미가 없으므로 false로 끈다.
+ * @param {string} [boardLabel] 버스처럼 "어디서 타는지"부터 알려주고 싶을 때 상단에 얹는 정류장 이름. */
+export function optionCard(plan, { selected = false, showDetailCta = true, boardLabel } = {}) {
   const slack = plan.slackSec;
   const badge = plan.late
     ? `<span class="badge badge--live">도착 지연</span>`
@@ -308,6 +329,7 @@ export function optionCard(plan, { selected = false, showDetailCta = true } = {}
 
   return `
     <button class="option" data-plan="${escapeHtml(plan.id)}" aria-pressed="${selected}">
+      ${boardLabel ? `<span class="option__board">🚏 ${escapeHtml(boardLabel)}에서 승차</span>` : ""}
       <span class="option__head">
         <span class="option__mode">${lineBadge(plan)} ${escapeHtml(plan.label)}</span>
         ${badge}
@@ -344,6 +366,54 @@ export function groupedOptionList(plans, selectedId, { showDetailCta = true } = 
         </div>`;
     })
     .join("");
+}
+
+/** 홈 화면 상단에 "지하철 추천 · 56분"처럼 지금 뽑힌 플랜을 한 줄로 요약한다 */
+export function recommendedHeader(plan) {
+  return `<p class="section-title section-title--recommend">${KIND_GROUP_LABEL[plan.kind] || ""} 추천 · ${fmtDur(plan.totalSec)}</p>`;
+}
+
+const BUS_PAGE_SIZE = 3;
+
+/**
+ * 홈 화면의 "다른 교통수단" 목록 — 현재 선택된 플랜은 제외하고 소요시간 짧은 순으로 보여준다.
+ * 버스는 노선이 여러 개 몰릴 수 있어 탈 정류장을 먼저 알려주고 3개까지만 보여준 뒤 더보기로 연다.
+ * @param {boolean} expandedBus 버스 더보기를 눌러서 전체를 펼친 상태인지
+ */
+export function otherOptionsList(plans, selectedId, { expandedBus = false, showDetailCta = true } = {}) {
+  const others = plans.filter((p) => p.id !== selectedId).sort((a, b) => a.totalSec - b.totalSec);
+  if (!others.length) return "";
+
+  const buses = others.filter((p) => p.kind === "bus");
+  const rest = others.filter((p) => p.kind !== "bus");
+  const visibleBuses = expandedBus ? buses : buses.slice(0, BUS_PAGE_SIZE);
+  const hiddenBusCount = buses.length - visibleBuses.length;
+
+  const busSection = buses.length
+    ? `
+      <p class="section-title" style="margin-top:10px">🚌 버스</p>
+      <div class="stack">
+        ${visibleBuses
+          .map((p) =>
+            optionCard(p, {
+              selected: p.id === selectedId,
+              showDetailCta,
+              boardLabel: p.meta?.itinerary?.board?.name,
+            }),
+          )
+          .join("")}
+      </div>
+      ${hiddenBusCount > 0 ? `<button type="button" class="link-btn" data-act="more-bus" style="margin-top:8px">버스 ${hiddenBusCount}개 더보기</button>` : ""}`
+    : "";
+
+  const restSection = rest.length
+    ? `
+      <div class="stack" style="margin-top:${buses.length ? 10 : 0}px">
+        ${rest.map((p) => optionCard(p, { selected: p.id === selectedId, showDetailCta })).join("")}
+      </div>`
+    : "";
+
+  return `<p class="section-title" style="margin-top:20px">다른 교통수단</p>${busSection}${restSection}`;
 }
 
 /* ---------- 위젯 미리보기 ---------- */

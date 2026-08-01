@@ -23,11 +23,12 @@ import { mountPlacePicker } from "../ui/placePicker.js";
 import {
   approachLine,
   countdownBlock,
-  groupedOptionList,
   legsList,
   legsTimeline,
   liveArrivals,
+  otherOptionsList,
   planNotes,
+  recommendedHeader,
   tickCountdown,
   weatherAdviceRow,
 } from "../ui/parts.js";
@@ -449,7 +450,7 @@ const HOME_MOOD_LABELS = [
 const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 async function renderActive(root, ctx, trip, now0, isWeekday) {
-  const view = { plans: [], selectedId: null, weather: null, destWeather: null };
+  const view = { plans: [], selectedId: null, weather: null, destWeather: null, busExpanded: false };
   // 평일 출퇴근일 때만 방향별 기분 문구를 랜덤으로 뽑는다 — 주말 여행 모드는 기존 기본 문구 그대로
   const countdownNormalLabel = isWeekday
     ? pickRandom(trip.direction === "toHome" ? HOME_MOOD_LABELS : WORK_MOOD_LABELS)
@@ -514,19 +515,18 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
         ${plan ? countdownBlock(plan) : `<p class="empty">경로를 찾을 수 없습니다.</p>`}
       </div>
 
-      ${plan ? `<div class="card">${legsTimeline(plan)}${legsList(plan)}${planNotes(plan)}${approachLine(plan)}</div>` : ""}
-      ${plan ? liveArrivals(plan) : ""}
-
       ${
         plan
-          ? `<div class="row" style="gap:8px;margin-top:12px">
-               <button class="btn btn--primary grow" data-act="share">🔗 ETA 공유</button>
-               <button class="btn btn--ghost grow" data-act="detail">경로 상세</button>
+          ? `${recommendedHeader(plan)}
+             <div class="card" style="margin-top:8px">
+               ${legsTimeline(plan)}${legsList(plan)}${planNotes(plan)}${approachLine(plan)}
+               <button class="btn btn--sm btn--ghost" data-act="share" style="margin-top:12px">🔗 ETA 공유</button>
              </div>`
           : ""
       }
+      ${plan ? liveArrivals(plan) : ""}
 
-      ${groupedOptionList(view.plans, view.selectedId)}
+      ${otherOptionsList(view.plans, view.selectedId, { expandedBus: view.busExpanded })}
 
       <!-- 홈 화면 위젯 미리보기: 실제 OS 위젯 연동 전까지 노출하지 않음 (widgetCard는 ui/parts.js에 남겨둠) -->
 
@@ -595,10 +595,6 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
       else input?.focus();
       return;
     }
-    if (act === "detail") {
-      goToDetail(selected());
-      return;
-    }
     if (act === "share") {
       const plan = selected();
       if (!plan) return;
@@ -606,6 +602,11 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
       const result = await shareText(text);
       if (result === "copied") toast("공유 문구를 클립보드에 복사했어요");
       else if (result === "failed") toast("공유에 실패했어요");
+      return;
+    }
+    if (act === "more-bus") {
+      view.busExpanded = true;
+      paint();
     }
   });
 

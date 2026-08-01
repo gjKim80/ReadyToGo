@@ -34,8 +34,9 @@ const BUS_KINDS = [
 const CROWDING = ["low", "mid", "high"];
 export const CROWDING_LABEL = { low: "여유", mid: "보통", high: "혼잡" };
 
-/** 실시간 도착 목록 생성: 앞 2대는 실시간, 이후는 배차간격 기반 예정 */
-function buildArrivals(seed, headwaySec, now, count = 8) {
+/** 실시간 도착 목록 생성: 앞 2대는 실시간, 이후는 배차간격 기반 예정
+ * @param {boolean} withExpress 지하철처럼 급행/일반 구분이 있는 노선이면 각 열차에 express 플래그를 단다 */
+function buildArrivals(seed, headwaySec, now, count = 8, withExpress = false) {
   const first = Math.round(seededRandom(`${seed}:first`) * headwaySec);
   const arrivals = [];
   let t = first;
@@ -46,6 +47,8 @@ function buildArrivals(seed, headwaySec, now, count = 8) {
       at: new Date(now.getTime() + Math.max(0, t + jitter) * 1000).toISOString(),
       live: i < 2,
       crowding: pick(`${seed}:c${i}`, CROWDING),
+      // 실제로도 급행은 일반보다 드물게 다닌다 — 대략 3대 중 1대 꼴로 섞는다
+      ...(withExpress ? { express: seededRandom(`${seed}:e${i}`) < 0.3 } : {}),
     });
     t += headwaySec;
   }
@@ -84,7 +87,7 @@ function mockItineraries(origin, destination, now, walkPace = 1) {
       rideSec,
       transfers,
       headwaySec: headway,
-      arrivals: buildArrivals(`${seed}:sub`, headway, now),
+      arrivals: buildArrivals(`${seed}:sub`, headway, now, 8, true),
     });
   }
 

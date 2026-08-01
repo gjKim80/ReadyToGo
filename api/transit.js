@@ -171,6 +171,11 @@ function scheduleArrivals(headwaySec, nowMs, count = 8) {
 
 /* ---------- 지하철: 서울 열린데이터광장 실시간 도착 ---------- */
 
+/** btrainSttus(운행 등급) 또는 문구 어디에든 "급행"/"특급"이 보이면 급행으로 본다 */
+function parseExpress(t) {
+  return /급행|특급/.test(`${t.btrainSttus || ""} ${t.trainLineNm || ""} ${t.arvlMsg2 || ""}`);
+}
+
 /**
  * 역명으로 실시간 도착 목록을 가져온다. 상행/하행이 뒤섞여 오므로 방향을 확정하지 않고
  * 도착이 빠른 순으로 그대로 보여준다(실제 승강장 전광판과 동일한 방식).
@@ -193,6 +198,8 @@ async function fetchSubwayArrivals(stationName) {
         /** 승강장 전광판 문구 그대로 — 방향 확정이 안 되니 사용자가 직접 보고 판단 */
         label: `${t.trainLineNm || ""} · ${t.arvlMsg2 || ""}`.trim(),
         stationsAway: parseStationsAway(t.arvlMsg2),
+        // 실시간 응답에서만 실제 급행/일반 여부를 알 수 있다 — 배차간격 추정치는 알 수 없으니 비워둔다
+        express: parseExpress(t),
       }))
       .sort((a, b) => new Date(a.at) - new Date(b.at))
       .slice(0, 6);

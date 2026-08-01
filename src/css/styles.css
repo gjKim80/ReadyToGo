@@ -291,6 +291,15 @@ body.onboarding-active .view {
   padding-left: 2px;
 }
 
+/* 추천 이동수단 헤더 — 일반 section-title보다 훨씬 눈에 띄게 */
+.section-title--recommend {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--c-primary-ink);
+}
+
 .row { display: flex; align-items: center; gap: 10px; }
 .row--between { justify-content: space-between; }
 .grow { flex: 1; min-width: 0; }
@@ -349,6 +358,26 @@ body.onboarding-active .view {
   color: var(--c-primary-ink);
   border-color: var(--c-primary);
 }
+
+/* 탑승 예정 열차 전후로 보여주는 지하철 도착 카드 */
+.arrival-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 62px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--c-fill);
+  border: 1.5px solid transparent;
+}
+.arrival-chip__time { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--c-ink); font-variant-numeric: tabular-nums; }
+.arrival-chip__tag { font-size: 10.5px; font-weight: 700; color: var(--c-ink-3); }
+.arrival-chip__tag--express { color: var(--c-danger); }
+.arrival-chip__rel { font-size: 10.5px; font-weight: 600; color: var(--c-ink-3); }
+.arrival-chip--chosen { background: var(--c-primary-weak); border-color: var(--c-primary); }
+.arrival-chip--chosen .arrival-chip__time { color: var(--c-primary-ink); }
+.arrival-chip--chosen .arrival-chip__rel { color: var(--c-primary-ink); font-weight: 700; }
 
 .input {
   width: 100%;
@@ -441,18 +470,16 @@ body.onboarding-active .view {
 .weather__meta { font-size: 13px; font-weight: 600; color: var(--c-ink-2); line-height: 1.55; }
 .weather__glyph { width: 46px; height: 46px; flex: none; }
 
-/* 날씨 + 준비물 안내를 한 카드 안에 좌우로 배치(안내 쪽이 더 좁게) */
-.weather-row { display: flex; align-items: stretch; gap: 12px; }
-.weather-row__weather { flex: 1.7; min-width: 0; display: flex; align-items: center; gap: 12px; }
+/* 날씨 + 준비물 안내를 한 카드 안에 세로 2단으로 배치(위: 날씨, 아래: 추천) */
+.weather-row { display: flex; flex-direction: column; gap: 12px; }
+.weather-row__weather { min-width: 0; display: flex; align-items: center; gap: 12px; }
 .weather-row__weather .weather__glyph { width: 40px; height: 40px; }
 .weather-row__weather .weather__temp { font-size: 28px; }
-.weather-row__divider { width: 1px; flex: none; background: var(--c-line); align-self: stretch; }
+.weather-row__divider { height: 1px; width: 100%; flex: none; background: var(--c-line); }
 .weather-row__advice {
-  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
 }
 
 /* ---------- Countdown ---------- */
@@ -642,6 +669,8 @@ body.onboarding-active .view {
   display: block;
 }
 .option[aria-pressed="true"] { border-color: var(--c-primary); background: var(--c-primary-weak); }
+/* 버스 카드 전용 — 노선 정보보다 먼저 "어디서 타는지"부터 알려준다 */
+.option__board { display: block; font-size: 12.5px; font-weight: 700; color: var(--c-ink-2); margin-bottom: 6px; }
 .option__head { display: flex; align-items: baseline; gap: 8px; }
 .option__mode { font-size: 15px; font-weight: 800; }
 .option__dur { font-family: var(--font-mono); margin-left: auto; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -667,11 +696,13 @@ body.onboarding-active .view {
 }
 
 .hero-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.hero-row .eyebrow { font-size: 12px; color: var(--c-ink-2); }
 .hero-row .eyebrow--muted {
   text-transform: none;
   letter-spacing: 0;
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--c-ink-2);
 }
 
 .hero-time-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
@@ -722,7 +753,7 @@ body.onboarding-active .view {
 
 .hairline { border: none; border-top: 1px solid var(--c-line); margin: 22px 0; }
 
-.route-row-list { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--c-line); border-bottom: 1px solid var(--c-line); padding: 4px 0; }
+.route-row-list { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--c-line); border-bottom: 1px solid var(--c-line); padding: 4px 0; }
 .route-row {
   width: 100%;
   display: flex;
@@ -730,15 +761,16 @@ body.onboarding-active .view {
   gap: 12px;
   padding: 14px 10px;
   border-radius: 10px;
+  border: 2px solid transparent;
   text-align: left;
 }
 .route-row__bar { width: 3px; align-self: stretch; border-radius: 2px; background: transparent; flex: none; }
-.route-row[aria-pressed="true"] { background: var(--c-primary-weak); }
+.route-row[aria-pressed="true"] { background: var(--c-primary-weak); border-color: var(--c-primary); }
 .route-row[aria-pressed="true"] .route-row__bar { background: var(--c-primary); }
 .route-row__body { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
-.route-row__sub { font-size: 11.5px; font-weight: 400; color: var(--c-ink-3); }
-.route-row__title { font-size: 16px; font-weight: 700; color: #4b5162; }
-.route-row[aria-pressed="true"] .route-row__title { color: var(--c-ink); }
+.route-row__sub { font-size: 12px; font-weight: 500; color: var(--c-ink-3); }
+.route-row__title { font-size: 21px; font-weight: 800; color: #4b5162; }
+.route-row[aria-pressed="true"] .route-row__title { color: var(--c-primary-ink); }
 
 .link-btn { font-size: 12px; font-weight: 700; color: var(--c-primary); }
 

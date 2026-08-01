@@ -33,6 +33,7 @@ function extendArrivals(arrivals, headwaySec, until) {
   let last = list[list.length - 1];
   let guard = 0;
   while (last && last.at.getTime() < until.getTime() && guard < 200) {
+    // 배차간격으로 밀어낸 추정 열차라 급행/일반 여부는 알 수 없다 — 아는 척하지 않는다
     last = { at: new Date(last.at.getTime() + headwaySec * 1000), live: false, crowding: last.crowding };
     list.push(last);
     guard += 1;
@@ -144,6 +145,19 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
       label: a.label || null,
     }));
 
+  // 탑승 예정 열차(chosen) 기준 앞뒤로 2대씩 — "이 차를 놓치면/이 차보다 일찍 가면"을
+  // 판단할 수 있게 지금 시각이 아니라 탑승 시각을 중심으로 잘라낸다
+  const chosenIdx = arrivals.indexOf(chosen);
+  const boardingWindow = arrivals.slice(Math.max(0, chosenIdx - 2), chosenIdx + 3).map((a) => ({
+    at: a.at,
+    live: a.live,
+    inSec: Math.round((a.at.getTime() - now.getTime()) / 1000),
+    // 배차간격 추정 열차는 express가 undefined로 남는다 — "급행/일반을 모른다"와
+    // "일반이다"는 다르므로 렌더링 쪽에서 구분해서 보여줘야 한다
+    express: a.express,
+    isChosen: a === chosen,
+  }));
+
   return {
     id: itinerary.id,
     kind: isSubway ? "subway" : "bus",
@@ -166,7 +180,7 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
         ? `다음 차 ${fmtDur(nextArrivals[0].inSec)} 후${nextArrivals[0].crowdingLabel ? ` · ${nextArrivals[0].crowdingLabel}` : ""}`
         : null,
     ].filter(Boolean),
-    meta: { itinerary, nextArrivals },
+    meta: { itinerary, nextArrivals, boardingWindow },
   };
 }
 
