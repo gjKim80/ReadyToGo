@@ -13,9 +13,11 @@
   /* Semantic — 앱 전체는 브랜드 블루 + 이 레드 두 가지만 쓴다.
      rain-weak/ok-weak는 UI 색이 아니라 지도 지형(공원/수변) 틴트로만 남겨둔다. */
   --c-rain-weak: #e4f2fb;
-  /* --c-primary와 짝을 이루는 강조색으로 선택한 마젠타 핑크 — Ready→Go 전환/타이머/강조 UI 전용 */
-  --c-danger: #e6197a;
-  --c-danger-weak: #fdeceb;
+  /* --c-primary(블루, hue≈221°)와 색상환 상 거의 정반대(hue≈41°)인 버밀리언 —
+     Ready→Go 전환/타이머/강조 UI 전용. 마젠타 핑크(#e6197a)는 블루와 인접색이라
+     대비가 애매했는데, 진짜 보색 관계라 대비는 또렷하고 톤은 오히려 덜 부딪힌다. */
+  --c-danger: #e2532a;
+  --c-danger-weak: #fdece5;
   --c-ok-weak: #e4f5ea;
 
   /* Neutral */
@@ -53,8 +55,8 @@
     --c-primary-weak: #17233a;
     --c-primary-ink: #a8c7fa;
     --c-rain-weak: #12242f;
-    --c-danger: #ed599f;
-    --c-danger-weak: #2e1917;
+    --c-danger: #ee7856;
+    --c-danger-weak: #2c1a14;
     --c-ok-weak: #12271d;
     --c-ink: #f1f2f4;
     --c-ink-2: #b6bbc4;
