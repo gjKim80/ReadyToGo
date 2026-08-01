@@ -179,6 +179,8 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
   let pickerDispose = null;
   /** Ready 아래 예상 소요/상태 칩용 — 있으면 쓰고, 못 구했으면 조용히 생략(스펙 기준) */
   let estimatePlan = null;
+  // 출근이면 집(출발지), 퇴근이면 회사(출발지) 날씨 — trip.origin이 방향에 따라 이미 그렇게 잡혀 있다
+  let weatherData = { weather: null, destWeather: null };
 
   function applyEstimate() {
     if (pickerOpen || !estimatePlan) return;
@@ -189,6 +191,29 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
       const mins = Math.round(estimatePlan.totalSec / 60);
       const label = isWeekday ? (trip.direction === "toWork" ? "회사" : "집") : trip.destination.name;
       subtextSlot.textContent = `${label} 도착까지 예상 ${mins}분`;
+    }
+    renderWeatherSlot();
+  }
+
+  function renderWeatherSlot() {
+    const slot = root.querySelector("#weather-slot");
+    if (!slot) return;
+    const tips = buildAdvice(weatherData.weather, weatherData.destWeather, estimatePlan);
+    slot.innerHTML = weatherAdviceRow(weatherData.weather, trip.origin?.name || "", tips);
+  }
+
+  async function loadWeatherOnce() {
+    if (!trip.origin || !trip.destination) return;
+    try {
+      const [weather, destWeather] = await Promise.all([
+        getWeather(trip.origin, { now: new Date() }),
+        getWeather(trip.destination, { now: new Date() }),
+      ]);
+      if (disposed) return;
+      weatherData = { weather, destWeather };
+      renderWeatherSlot();
+    } catch {
+      // 실패해도 화면을 막지 않는다 — 날씨 카드는 없으면 스켈레톤인 채로 조용히 남는다
     }
   }
 
@@ -297,6 +322,11 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
 
     root.innerHTML = `
       ${heroTimeBlock(new Date())}
+      ${
+        trip.origin && trip.destination
+          ? `<div id="weather-slot" style="margin-top:12px"><div class="card"><div class="skeleton" style="height:90px"></div></div></div>`
+          : ""
+      }
       <div id="setup-collapse" class="setup-collapse">
         ${weekdayBody}
         ${weekendBody}
@@ -333,6 +363,7 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
 
   paint();
   loadEstimateOnce();
+  loadWeatherOnce();
 
   delegate(root, "click", "[data-dir]", (_e, el) => {
     if (state.trip.weekdayDirection === el.dataset.dir) return;
@@ -450,7 +481,7 @@ const HOME_MOOD_LABELS = [
 const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 async function renderActive(root, ctx, trip, now0, isWeekday) {
-  const view = { plans: [], selectedId: null, weather: null, destWeather: null, busExpanded: false };
+  const view = { plans: [], selectedId: null, busExpanded: false };
   // 평일 출퇴근일 때만 방향별 기분 문구를 랜덤으로 뽑는다 — 주말 여행 모드는 기존 기본 문구 그대로
   const countdownNormalLabel = isWeekday
     ? pickRandom(trip.direction === "toHome" ? HOME_MOOD_LABELS : WORK_MOOD_LABELS)
@@ -461,24 +492,22 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
     const now = new Date();
     const planNow = trip.planNow > now ? trip.planNow : now;
 
-    const [plans, weather, destWeather] = await Promise.all([
-      planTrip({
-        origin: trip.origin,
-        destination: trip.destination,
-        arriveBy: trip.arriveBy,
-        now: planNow,
-        bufferMin: s.settings.bufferMin,
-        walkPace: s.settings.walkPace,
-        prefer: isWeekday ? s.settings.preferredMode : s.trip.mode,
-      }),
-      getWeather(trip.origin, { now }),
-      getWeather(trip.destination, { now }),
-    ]);
+    const plans = await planTrip({
+      origin: trip.origin,
+      destination: trip.destination,
+      arriveBy: trip.arriveBy,
+      now: planNow,
+      bufferMin: s.settings.bufferMin,
+      walkPace: s.settings.walkPace,
+      prefer: isWeekday ? s.settings.preferredMode : s.trip.mode,
+    });
 
     view.plans = plans;
-    view.weather = weather;
-    view.destWeather = destWeather;
-    if (!plans.some((p) => p.id === view.selectedId)) view.selectedId = plans[0]?.id ?? null;
+    // 처음 진입할 땐(선택된 플랜이 아직 없으면) 선호 수단이 아니라 실제로 가장 빨리 가는 쪽을 고른다
+    if (!plans.some((p) => p.id === view.selectedId)) {
+      const fastest = plans.reduce((min, p) => (p.totalSec < min.totalSec ? p : min), plans[0]);
+      view.selectedId = fastest?.id ?? null;
+    }
   }
 
   function selected() {
@@ -488,12 +517,9 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
   function paint() {
     const s = getState();
     const plan = selected();
-    const tips = buildAdvice(view.weather, view.destWeather, plan);
 
     root.innerHTML = `
       ${headerLine(new Date(), isWeekday)}
-
-      ${weatherAdviceRow(view.weather, trip.origin.name, tips)}
 
       <div class="card" style="margin-top:12px">
         <div class="row row--between" style="margin-bottom:4px">
@@ -504,12 +530,6 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
             </p>
           </div>
           <button class="btn btn--sm btn--ghost" data-act="reset" style="flex:none">다시 설정</button>
-          <input
-            type="time"
-            id="active-time-edit"
-            style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px"
-            value="${escapeHtml(isWeekday ? (trip.direction === "toWork" ? s.commute.arriveAt : s.commute.leaveAt) : s.trip.arriveBy || "")}"
-          />
         </div>
 
         ${plan ? countdownBlock(plan) : `<p class="empty">경로를 찾을 수 없습니다.</p>`}
@@ -576,23 +596,11 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
     paint();
   });
 
-  delegate(root, "change", "#active-time-edit", (_e, el) => {
-    if (!el.value) return;
-    if (isWeekday) {
-      setCommute({ [trip.direction === "toWork" ? "arriveAt" : "leaveAt"]: el.value });
-    } else {
-      setTrip({ arriveBy: el.value });
-    }
-    toast("시간을 변경했어요");
-    ctx.refresh?.();
-  });
-
   delegate(root, "click", "[data-act]", async (_e, el) => {
     const act = el.dataset.act;
     if (act === "reset") {
-      const input = root.querySelector("#active-time-edit");
-      if (input?.showPicker) input.showPicker();
-      else input?.focus();
+      setTrip({ active: false });
+      ctx.refresh?.();
       return;
     }
     if (act === "share") {

@@ -293,11 +293,12 @@ body.onboarding-active .view {
 
 /* 추천 이동수단 헤더 — 일반 section-title보다 훨씬 눈에 띄게 */
 .section-title--recommend {
-  font-size: 15px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.01em;
   text-transform: none;
   color: var(--c-primary-ink);
+  margin-top: 20px;
 }
 
 .row { display: flex; align-items: center; gap: 10px; }
@@ -374,6 +375,7 @@ body.onboarding-active .view {
 .arrival-chip__time { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--c-ink); font-variant-numeric: tabular-nums; }
 .arrival-chip__tag { font-size: 10.5px; font-weight: 700; color: var(--c-ink-3); }
 .arrival-chip__tag--express { color: var(--c-danger); }
+.arrival-chip__tag--last { color: var(--c-danger); font-weight: 800; }
 .arrival-chip__rel { font-size: 10.5px; font-weight: 600; color: var(--c-ink-3); }
 .arrival-chip--chosen { background: var(--c-primary-weak); border-color: var(--c-primary); }
 .arrival-chip--chosen .arrival-chip__time { color: var(--c-primary-ink); }
@@ -848,6 +850,7 @@ body.onboarding-active .view {
 /* Ready → GO: 기존 메뉴가 위로 접혀 사라지고, 카운트다운 화면이 그 자리에서 나타난다 */
 .setup-collapse {
   overflow: hidden;
+  margin-top: 16px;
   transition: max-height 380ms ease, opacity 300ms ease, transform 380ms ease;
 }
 .setup-collapse--collapsed {

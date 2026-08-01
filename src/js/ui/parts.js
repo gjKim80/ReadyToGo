@@ -276,10 +276,12 @@ export function liveArrivals(plan) {
         .map((a) => {
           const rel = a.isChosen ? "탑승 예정" : a.inSec >= 0 ? `${fmtDur(a.inSec)} 후` : `${fmtDur(-a.inSec)} 전`;
           // express가 undefined면 배차간격 추정 열차라 급행/일반을 알 수 없다는 뜻 — 태그를 생략한다
-          const tag =
-            a.express === undefined
-              ? ""
-              : `<span class="arrival-chip__tag${a.express ? " arrival-chip__tag--express" : ""}">${a.express ? "급행" : "일반"}</span>`;
+          const tagParts = [];
+          if (a.express !== undefined) tagParts.push(a.express ? "급행" : "일반");
+          if (a.isLast) tagParts.push("막차");
+          const tag = tagParts.length
+            ? `<span class="arrival-chip__tag${a.express ? " arrival-chip__tag--express" : ""}${a.isLast ? " arrival-chip__tag--last" : ""}">${tagParts.join(" · ")}</span>`
+            : "";
           return `
             <span class="arrival-chip${a.isChosen ? " arrival-chip--chosen" : ""}">
               <span class="arrival-chip__time">${fmtClock(a.at)}</span>

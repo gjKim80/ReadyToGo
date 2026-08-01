@@ -145,16 +145,30 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
       label: a.label || null,
     }));
 
-  // 탑승 예정 열차(chosen) 기준 앞뒤로 2대씩 — "이 차를 놓치면/이 차보다 일찍 가면"을
-  // 판단할 수 있게 지금 시각이 아니라 탑승 시각을 중심으로 잘라낸다
+  // 탑승 예정 열차(chosen) 기준 앞뒤로 2대씩, 총 5대 — "이 차를 놓치면/이 차보다 일찍
+  // 가면"을 판단할 수 있게 지금 시각이 아니라 탑승 시각을 중심으로 잘라낸다. chosen이
+  // 배열 끝/시작에 가까워 한쪽이 모자라면 반대쪽에서 더 끌어와 최대한 5대를 채운다.
   const chosenIdx = arrivals.indexOf(chosen);
-  const boardingWindow = arrivals.slice(Math.max(0, chosenIdx - 2), chosenIdx + 3).map((a) => ({
+  const WINDOW_HALF = 2;
+  let windowStart = chosenIdx - WINDOW_HALF;
+  let windowEnd = chosenIdx + WINDOW_HALF + 1;
+  if (windowStart < 0) {
+    windowEnd = Math.min(arrivals.length, windowEnd - windowStart);
+    windowStart = 0;
+  }
+  if (windowEnd > arrivals.length) {
+    windowStart = Math.max(0, windowStart - (windowEnd - arrivals.length));
+    windowEnd = arrivals.length;
+  }
+  const boardingWindow = arrivals.slice(windowStart, windowEnd).map((a) => ({
     at: a.at,
     live: a.live,
     inSec: Math.round((a.at.getTime() - now.getTime()) / 1000),
     // 배차간격 추정 열차는 express가 undefined로 남는다 — "급행/일반을 모른다"와
     // "일반이다"는 다르므로 렌더링 쪽에서 구분해서 보여줘야 한다
     express: a.express,
+    // 막차 여부는 실시간 API가 알려줄 때만 안다 — 배차간격 추정 열차는 항상 undefined
+    isLast: a.isLast,
     isChosen: a === chosen,
   }));
 
