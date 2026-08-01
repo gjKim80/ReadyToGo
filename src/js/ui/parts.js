@@ -143,19 +143,23 @@ export function tickCountdown(root, plan, now = new Date()) {
 
 /* ---------- 노선 배지 (지하철/버스는 이모지 대신 실제 노선 컬러+번호) ---------- */
 
-/** "수도권 2호선" -> "2", "9호선" -> "9", "신분당선" -> "신분" (숫자가 없는 노선은 앞 2글자) */
-function badgeText(plan) {
-  const name = plan.label || "";
-  if (plan.kind === "bus") return name.replace(/번$/, "");
+/**
+ * "수도권 2호선" -> "2", "9호선" -> "9", "신분당선" -> "신분" (숫자가 없는 노선은 앞 2글자)
+ * @param {{kind:string, label?:string}} info plan 전체를 줘도 되고, 환승 구간처럼 그
+ *   구간만의 {kind, label}을 만들어 줘도 된다 — legsList가 구간별 배지를 이렇게 쓴다.
+ */
+function badgeText(info) {
+  const name = info.label || "";
+  if (info.kind === "bus") return name.replace(/번$/, "");
   const stripped = name.replace(/^수도권\s*/, "");
   return stripped.match(/^(\d+)호선/)?.[1] || stripped.slice(0, 2);
 }
 
 /** 자차/도보는 이모지 그대로, 지하철/버스는 실제 노선 색 배지로 표시한다 */
-function lineBadge(plan, { size = "md" } = {}) {
-  if (plan.kind !== "subway" && plan.kind !== "bus") return plan.icon;
+function lineBadge(info, { size = "md" } = {}) {
+  if (info.kind !== "subway" && info.kind !== "bus") return info.icon;
   const cls = size === "lg" ? "line-badge line-badge--lg" : "line-badge";
-  return `<span class="${cls}" style="background:${escapeHtml(plan.color || "#3D5BAB")}">${escapeHtml(badgeText(plan))}</span>`;
+  return `<span class="${cls}" style="background:${escapeHtml(info.color || "#3D5BAB")}">${escapeHtml(badgeText(info))}</span>`;
 }
 
 /* ---------- 경로 상세 ---------- */
@@ -196,7 +200,7 @@ export function legsList(plan) {
           return `
         <li class="leg" data-kind="${leg.kind}">
           <div class="grow">
-            <p class="leg__title">${isRideLeg ? `${lineBadge(plan)} ` : ""}${escapeHtml(leg.title)}</p>
+            <p class="leg__title">${isRideLeg ? `${lineBadge({ kind: leg.kind, color: leg.line?.color, label: leg.line?.name })} ` : ""}${escapeHtml(leg.title)}</p>
             ${leg.sub ? `<p class="leg__sub">${escapeHtml(leg.sub)}</p>` : ""}
           </div>
           <span class="leg__dur">${fmtDur(leg.sec)}</span>

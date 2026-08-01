@@ -79,34 +79,56 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
   const arriveAt = new Date(boardAt.getTime() + tail);
 
   const isSubway = itinerary.type === "subway";
-  const transferNote = itinerary.transfers ? ` · 환승 ${itinerary.transfers}회` : " · 직통";
+
+  // segments가 없으면(목 데이터 등) 지금 갖고 있는 단일 구간 정보로 대체한다 —
+  // 환승 상세가 없을 뿐 동작은 그대로다.
+  const segments = itinerary.segments?.length
+    ? itinerary.segments
+    : [{ type: itinerary.type, line: itinerary.line, board: itinerary.board, alight: itinerary.alight, rideSec: ride, transferWalkSec: 0 }];
 
   const legs = [
     {
       kind: "walk",
-      title: `${itinerary.board.name}까지 도보`,
+      title: `${segments[0].board.name}까지 도보`,
       sub: "출발지에서 승차 지점까지",
       sec: walkTo,
     },
     {
       kind: "wait",
       title: "승차 대기 여유",
-      sub: `${itinerary.line.name} ${boardAt.getHours()}시 ${String(boardAt.getMinutes()).padStart(2, "0")}분 도착 예정`,
+      sub: `${segments[0].line.name} ${boardAt.getHours()}시 ${String(boardAt.getMinutes()).padStart(2, "0")}분 도착 예정`,
       sec: bufferSec,
     },
-    {
-      kind: itinerary.type,
-      title: `${itinerary.line.name} 탑승`,
-      sub: `${itinerary.board.name} → ${itinerary.alight.name}${transferNote}`,
-      sec: ride,
-    },
-    {
-      kind: "walk",
-      title: "하차 후 목적지까지 도보",
-      sub: `${itinerary.alight.name}에서 출발`,
-      sec: walkFrom,
-    },
   ];
+  // 탑승 구간마다 "무슨 노선을 타는지 · 어디서 어디까지"를 그대로 보여준다 — 직통이면
+  // 탑승 leg가 하나뿐이라 저절로 "환승 없음"으로 읽히고, 여러 개면 그 사이에 환승
+  // 도보 leg가 끼어서 "몇 번째 정류장에서 환승하는지"까지 자연히 드러난다.
+  segments.forEach((seg, i) => {
+    if (i > 0) {
+      const prevAlight = segments[i - 1].alight.name;
+      legs.push({
+        kind: "walk",
+        title: `${seg.board.name}에서 환승`,
+        // 같은 역/정류장에서 갈아타면 "OO → OO"로 겹쳐 보이니 그때는 생략한다
+        sub: prevAlight === seg.board.name ? "같은 역에서 환승" : `${prevAlight} → ${seg.board.name} 이동`,
+        sec: seg.transferWalkSec || 0,
+      });
+    }
+    legs.push({
+      kind: seg.type,
+      title: `${seg.line.name} 탑승`,
+      sub: `${seg.board.name} → ${seg.alight.name}`,
+      sec: seg.rideSec,
+      // 환승이 있으면 구간마다 노선이 다르므로, 배지(번호+색)도 이 구간 것을 써야 한다
+      line: seg.line,
+    });
+  });
+  legs.push({
+    kind: "walk",
+    title: "하차 후 목적지까지 도보",
+    sub: `${segments[segments.length - 1].alight.name}에서 출발`,
+    sec: walkFrom,
+  });
 
   const nextArrivals = arrivals
     .filter((a) => a.at.getTime() >= now.getTime())

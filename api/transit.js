@@ -261,6 +261,36 @@ async function fetchBusArrival({ arsId, busNo }) {
  * 등), 여기서 바로 실시간까지 물어보면 버려질 항목에도 쓸데없이 호출이 나간다.
  * 실시간은 최종 선택(중복 제거 + 상위 몇 개) 이후 overlayRealtime()에서 붙인다.
  */
+/**
+ * 승차 구간별 상세 — 환승이 있으면(legs.length > 1) 탑승마다 노선명/승차역/하차역이
+ * 다 다른데, 예전엔 legs[0]/legs[last]만 남기고 중간은 "환승 N회"라는 숫자로만
+ * 뭉개버렸다. 사용자가 "환승인지 직통인지, 환승이면 어디서 무슨 노선을 타야 하는지"를
+ * 알 수 있게 탑승 구간을 하나씩 그대로 배열로 남긴다.
+ */
+function buildSegments(subPaths, legs, walkPace) {
+  return legs.map((leg, i) => {
+    let transferWalkSec = 0;
+    if (i > 0) {
+      const prevIdx = subPaths.indexOf(legs[i - 1]);
+      const curIdx = subPaths.indexOf(leg);
+      transferWalkSec = Math.round(
+        subPaths
+          .slice(prevIdx + 1, curIdx)
+          .filter((s) => s.trafficType === 3)
+          .reduce((acc, s) => acc + minToSec(s.sectionTime), 0) / walkPace,
+      );
+    }
+    return {
+      type: leg.trafficType === SUBWAY ? "subway" : "bus",
+      line: lineOf(leg),
+      board: { name: leg.startName },
+      alight: { name: leg.endName },
+      rideSec: minToSec(leg.sectionTime),
+      transferWalkSec,
+    };
+  });
+}
+
 function buildItinerary(path, { nowMs, walkPace, origin, destination }) {
   const subPaths = path.subPath || [];
   const legs = subPaths.filter((s) => s.trafficType === SUBWAY || s.trafficType === BUS);
@@ -275,8 +305,11 @@ function buildItinerary(path, { nowMs, walkPace, origin, destination }) {
   const boardWalk = walkOf(subPaths.slice(0, firstIdx));
   const alightWalk = walkOf(subPaths.slice(lastIdx + 1));
 
-  // 탑승 구간 = 첫 승차부터 마지막 하차까지 (중간 환승 도보·대기 포함)
-  const rideSec = subPaths.slice(firstIdx, lastIdx + 1).reduce((acc, s) => acc + minToSec(s.sectionTime), 0);
+  const segments = buildSegments(subPaths, legs, walkPace);
+  // 탑승 구간 총합 = 각 구간 승차시간 + (보정된) 환승 도보시간. segments에서 그대로
+  // 더해서 만든다 — 따로 계산하면 환승 도보에 walkPace 보정이 빠져 아래 leg 목록
+  // 합계(totalSec)와 어긋날 수 있다.
+  const rideSec = segments.reduce((acc, s) => acc + s.rideSec + s.transferWalkSec, 0);
 
   const type = legs[0].trafficType === SUBWAY ? "subway" : "bus";
   const headwaySec = legs[0].intervalTime ? minToSec(legs[0].intervalTime) : DEFAULT_HEADWAY[type];
@@ -291,6 +324,7 @@ function buildItinerary(path, { nowMs, walkPace, origin, destination }) {
     alight: { name: legs[legs.length - 1].endName, walkSec: alightWalk },
     rideSec,
     transfers: legs.length - 1,
+    segments,
     headwaySec,
     arrivals: scheduleArrivals(headwaySec, nowMs),
     path: buildPath(subPaths, origin, destination),
