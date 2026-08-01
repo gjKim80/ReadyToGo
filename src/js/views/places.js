@@ -69,6 +69,7 @@ function pinnedRow(slot, icon, label, place) {
 
 export async function render(root) {
   let pickerSlot = null; // null | "home" | "work"
+  let addOpen = false;
   let pickerDispose = null;
 
   function paint() {
@@ -94,11 +95,22 @@ export async function render(root) {
           ${pinnedRow("work", "🏢", "회사", getWork())}
         </div>`;
 
+    const addSection = addOpen
+      ? `
+        <div class="row row--between" style="margin-bottom:8px">
+          <p class="section-title" style="margin:0">장소 추가</p>
+          <button class="btn btn--sm btn--ghost" data-act="cancel-add">취소</button>
+        </div>
+        <div id="add-picker-slot" style="margin-bottom:20px"></div>`
+      : "";
+
     root.innerHTML = `
       <div class="row row--between" style="margin-bottom:12px">
         <p class="section-title" style="margin:0">저장한 장소</p>
-        <a class="btn btn--sm btn--primary" href="#/route">+ 장소 추가</a>
+        ${addOpen ? "" : `<button class="btn btn--sm btn--primary" data-act="add-place">+ 장소 추가</button>`}
       </div>
+
+      ${addSection}
 
       ${pinnedSection}
 
@@ -122,7 +134,19 @@ export async function render(root) {
           : ""
       }`;
 
-    if (pickerSlot) {
+    if (addOpen) {
+      pickerDispose?.();
+      pickerDispose = mountPlacePicker(root.querySelector("#add-picker-slot"), {
+        onSelect(place) {
+          const saved = upsertPlace(place);
+          pickerDispose?.();
+          pickerDispose = null;
+          addOpen = false;
+          paint();
+          toast(`${saved.name}을(를) 추가했어요`);
+        },
+      });
+    } else if (pickerSlot) {
       const slot = pickerSlot;
       pickerDispose?.();
       pickerDispose = mountPlacePicker(root.querySelector("#pinned-picker-slot"), {
@@ -141,6 +165,16 @@ export async function render(root) {
   }
 
   paint();
+
+  delegate(root, "click", '[data-act="add-place"]', () => {
+    addOpen = true;
+    paint();
+  });
+
+  delegate(root, "click", '[data-act="cancel-add"]', () => {
+    addOpen = false;
+    paint();
+  });
 
   delegate(root, "click", "[data-pinned-change]", (_e, el) => {
     pickerSlot = el.dataset.pinnedChange;
