@@ -9,6 +9,7 @@
 | `GET /api/weather` | 기상청 단기예보 | `KMA_SERVICE_KEY` | 구현 완료 |
 | `GET /api/places` | NAVER Geocoding (+지역검색) | `NAVER_CLIENT_ID/SECRET` (+`NAVER_SEARCH_*`) | 구현 완료 |
 | `GET /api/transit` | ODsay 대중교통 길찾기 + 서울 지하철/TAGO 버스 실시간 오버레이 | `ODSAY_API_KEY` (+선택 `SEOUL_SUBWAY_API_KEY`, `TAGO_SERVICE_KEY`) | 구현 완료 |
+| `GET /api/timetable` | 서울교통공사 지하철 역별 시간표(getTrainSch) | `SEOUL_SUBWAY_TIMETABLE_KEY` | 백엔드만 완료 — 프런트엔드 미연결 |
 | `GET /api/health` | — | — | 키 설정/동작 점검용 |
 
 ## 키 발급 순서
@@ -70,6 +71,22 @@ vercel env add SEOUL_SUBWAY_API_KEY production
 
 ```bash
 vercel env add TAGO_SERVICE_KEY production
+```
+
+### 7. 지하철 정적 시간표 (서울교통공사, 자동 새로고침용 — 아직 미연결)
+실시간 도착(5번)은 홈 화면이 자동 새로고침될 때마다 다시 호출되므로 무료 건수를
+빨리 소모한다. 이 시간표는 유효기간(보통 ~2개월) 동안 안 바뀌는 정적 데이터라
+캐싱해서 "기본은 시간표, 실시간은 사용자가 요청할 때만" 구조로 건수를 아끼려는 것.
+
+1. https://www.data.go.kr 에서 **"서울교통공사_역코드로 지하철 열차 시간표 검색"**을 활용신청
+   — 5번의 `SEOUL_SUBWAY_API_KEY`와는 **별도 승인 항목**이다(같은 계정이어도 따로 신청해야 함).
+2. 승인 상태는 data.seoul.go.kr **마이페이지 > 인증키 신청현황**에서 확인 — "유효하지 않은
+   인증키" 오류가 나오면 아직 승인 대기 중인 것.
+3. 역코드(`stnCd`) 대신 역명으로 필터링하는 임시 구현이라(위 `api/timetable.js` 주석 참고),
+   나중에 역코드 매핑을 구하면 요청을 더 가볍게 만들 수 있다.
+
+```bash
+vercel env add SEOUL_SUBWAY_TIMETABLE_KEY production
 ```
 
 ## 확인

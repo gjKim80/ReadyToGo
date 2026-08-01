@@ -113,6 +113,8 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
       crowding: a.crowding,
       crowdingLabel: CROWDING_LABEL[a.crowding],
       stationsAway: a.stationsAway ?? null,
+      // 지하철 API가 "구파발행 · 전역출발" 같은 행선지/상태 원문을 주면 그대로 함께 보여준다
+      label: a.label || null,
     }));
 
   return {

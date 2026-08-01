@@ -271,10 +271,10 @@ export function liveArrivals(plan) {
       </div>
       <div class="row" style="gap:8px;flex-wrap:wrap">
         ${arrivals
-          .map(
-            (a) =>
-              `<span class="chip">${fmtDur(a.inSec)} 후${a.crowdingLabel ? ` · ${escapeHtml(a.crowdingLabel)}` : ""}</span>`,
-          )
+          .map((a) => {
+            const detail = a.label || a.crowdingLabel;
+            return `<span class="chip">${fmtDur(a.inSec)} 후${detail ? ` · ${escapeHtml(detail)}` : ""}</span>`;
+          })
           .join("")}
       </div>
     </div>`;
