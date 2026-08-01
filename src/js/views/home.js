@@ -311,9 +311,9 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
 
               <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:16px">
                 <span class="eyebrow">출발지</span>
-                <button class="chip" data-origin="" aria-pressed="${!s.trip.originId}">📍 현재 위치</button>
-                ${getHome() ? `<button class="chip" data-origin="${escapeHtml(getHome().id)}" aria-pressed="${s.trip.originId === getHome().id}">🏠 집</button>` : ""}
-                ${getWork() ? `<button class="chip" data-origin="${escapeHtml(getWork().id)}" aria-pressed="${s.trip.originId === getWork().id}">🏢 회사</button>` : ""}
+                <button class="chip" data-origin="" aria-pressed="${!s.trip.originId}"><span class="icon icon--pin" aria-hidden="true"></span> 현재 위치</button>
+                ${getHome() ? `<button class="chip" data-origin="${escapeHtml(getHome().id)}" aria-pressed="${s.trip.originId === getHome().id}"><span class="icon icon--home" aria-hidden="true"></span> 집</button>` : ""}
+                ${getWork() ? `<button class="chip" data-origin="${escapeHtml(getWork().id)}" aria-pressed="${s.trip.originId === getWork().id}"><span class="icon icon--work" aria-hidden="true"></span> 회사</button>` : ""}
               </div>`
         }`
       : "";
@@ -540,7 +540,7 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
           ? `${recommendedHeader(plan)}
              <div class="card" style="margin-top:8px">
                ${legsTimeline(plan)}${legsList(plan)}${planNotes(plan)}${approachLine(plan)}
-               <button class="btn btn--sm btn--ghost" data-act="share" style="margin-top:12px">🔗 ETA 공유</button>
+               <button class="btn btn--sm btn--ghost" data-act="share" style="margin-top:12px"><span class="icon icon--share" aria-hidden="true"></span> ETA 공유</button>
              </div>`
           : ""
       }

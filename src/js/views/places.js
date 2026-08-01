@@ -27,7 +27,7 @@ function row(place, { home, work }) {
   return `
     <li class="place">
       <button class="place__act" data-fav="${escapeHtml(place.id)}" aria-label="즐겨찾기 전환">
-        ${place.favorite ? "⭐" : "☆"}
+        <span class="icon icon--${place.favorite ? "star-filled" : "star-outline"}" aria-hidden="true"></span>
       </button>
       <button class="grow row" data-go="${escapeHtml(place.id)}" style="text-align:left;gap:10px">
         <span class="place__mark">${place.icon || "📍"}</span>
@@ -50,7 +50,7 @@ function pinnedRow(slot, icon, label, place) {
       <button class="route-row" data-pinned-change="${slot}" aria-pressed="true">
         <span class="route-row__bar" aria-hidden="true"></span>
         <span class="route-row__body grow" style="min-width:0">
-          <span class="route-row__sub truncate">${icon} ${label}</span>
+          <span class="route-row__sub truncate"><span class="icon icon--${icon}" aria-hidden="true"></span> ${label}</span>
           <span class="route-row__title truncate">${escapeHtml(place.name)}</span>
         </span>
         <span class="link-btn" style="flex:none;align-self:center">변경</span>
@@ -60,7 +60,7 @@ function pinnedRow(slot, icon, label, place) {
     <button class="route-row" data-pinned-change="${slot}" aria-pressed="false">
       <span class="route-row__bar" aria-hidden="true"></span>
       <span class="route-row__body grow" style="min-width:0">
-        <span class="route-row__sub">${icon} ${label}</span>
+        <span class="route-row__sub"><span class="icon icon--${icon}" aria-hidden="true"></span> ${label}</span>
         <span class="route-row__title" style="color:var(--c-ink-3)">설정 안 됨</span>
       </span>
       <span class="link-btn" style="flex:none;align-self:center">설정</span>
@@ -91,8 +91,8 @@ export async function render(root) {
       : `
         <p class="section-title">집 · 회사</p>
         <div class="route-row-list">
-          ${pinnedRow("home", "🏠", "집", getHome())}
-          ${pinnedRow("work", "🏢", "회사", getWork())}
+          ${pinnedRow("home", "home", "집", getHome())}
+          ${pinnedRow("work", "work", "회사", getWork())}
         </div>`;
 
     const addSection = addOpen
@@ -114,7 +114,7 @@ export async function render(root) {
 
       ${pinnedSection}
 
-      <p class="section-title" style="margin-top:20px">⭐ 즐겨찾기</p>
+      <p class="section-title" style="margin-top:20px"><span class="icon icon--star-filled" aria-hidden="true"></span> 즐겨찾기</p>
       <div class="card" style="padding:4px 12px">
         ${favorites.length ? `<ul>${favorites.map((p) => row(p, meta)).join("")}</ul>` : `<p class="empty">즐겨찾기한 장소가 없어요.<br />별표를 눌러 상단에 고정하세요.</p>`}
       </div>
@@ -214,8 +214,8 @@ export async function render(root) {
       body: `
         <div class="stack">
           <button class="btn btn--primary btn--block" data-m="go">이 장소로 경로 보기</button>
-          <button class="btn btn--ghost btn--block" data-m="home">🏠 집으로 지정</button>
-          <button class="btn btn--ghost btn--block" data-m="work">🏢 회사로 지정</button>
+          <button class="btn btn--ghost btn--block" data-m="home"><span class="icon icon--home" aria-hidden="true"></span> 집으로 지정</button>
+          <button class="btn btn--ghost btn--block" data-m="work"><span class="icon icon--work" aria-hidden="true"></span> 회사로 지정</button>
           <button class="btn btn--ghost btn--block" data-m="del" style="color:var(--c-danger)">삭제</button>
         </div>`,
       onMount(body, close) {

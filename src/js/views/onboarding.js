@@ -156,8 +156,8 @@ export async function render(root, ctx = {}) {
         <p class="eyebrow">이동수단</p>
         <p class="onboard-title">자주 쓰는 이동수단은 무엇인가요?</p>
         <div class="seg" style="margin-top:20px">
-          <button class="seg__btn" data-prefer="transit" aria-pressed="${draft.preferredMode === "transit"}">🚇 대중교통</button>
-          <button class="seg__btn" data-prefer="driving" aria-pressed="${draft.preferredMode === "driving"}">🚗 마이카</button>
+          <button class="seg__btn" data-prefer="transit" aria-pressed="${draft.preferredMode === "transit"}"><span class="icon icon--subway" aria-hidden="true"></span> 대중교통</button>
+          <button class="seg__btn" data-prefer="driving" aria-pressed="${draft.preferredMode === "driving"}"><span class="icon icon--car" aria-hidden="true"></span> 마이카</button>
         </div>`,
         { nextLabel: "시작하기" },
       );

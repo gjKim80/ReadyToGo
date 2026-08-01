@@ -124,20 +124,20 @@ async function resultScreen(root, ctx, destination) {
             </span>
             <span class="link-btn" style="flex:none;align-self:center">변경</span>
           </button>
-          <button class="place__act" data-act="fav" aria-label="즐겨찾기" style="flex:none">${fav ? "⭐" : "☆"}</button>
+          <button class="place__act" data-act="fav" aria-label="즐겨찾기" style="flex:none"><span class="icon icon--${fav ? "star-filled" : "star-outline"}" aria-hidden="true"></span></button>
         </div>
       </div>
 
       <div class="card" style="padding:12px;margin-top:12px">
         <div class="row" style="gap:6px;flex-wrap:wrap">
           <span class="eyebrow">출발지</span>
-          <button class="chip" data-origin="" aria-pressed="${!s.trip.originId}">📍 현재 위치</button>
-          ${getHome() ? `<button class="chip" data-origin="${escapeHtml(getHome().id)}" aria-pressed="${s.trip.originId === getHome().id}">🏠 집</button>` : ""}
-          ${getWork() ? `<button class="chip" data-origin="${escapeHtml(getWork().id)}" aria-pressed="${s.trip.originId === getWork().id}">🏢 회사</button>` : ""}
+          <button class="chip" data-origin="" aria-pressed="${!s.trip.originId}"><span class="icon icon--pin" aria-hidden="true"></span> 현재 위치</button>
+          ${getHome() ? `<button class="chip" data-origin="${escapeHtml(getHome().id)}" aria-pressed="${s.trip.originId === getHome().id}"><span class="icon icon--home" aria-hidden="true"></span> 집</button>` : ""}
+          ${getWork() ? `<button class="chip" data-origin="${escapeHtml(getWork().id)}" aria-pressed="${s.trip.originId === getWork().id}"><span class="icon icon--work" aria-hidden="true"></span> 회사</button>` : ""}
         </div>
         <div class="seg" style="margin-top:10px">
-          <button class="seg__btn" data-mode="transit" aria-pressed="${s.trip.mode === "transit"}">🚇 대중교통</button>
-          <button class="seg__btn" data-mode="driving" aria-pressed="${s.trip.mode === "driving"}">🚗 마이카</button>
+          <button class="seg__btn" data-mode="transit" aria-pressed="${s.trip.mode === "transit"}"><span class="icon icon--subway" aria-hidden="true"></span> 대중교통</button>
+          <button class="seg__btn" data-mode="driving" aria-pressed="${s.trip.mode === "driving"}"><span class="icon icon--car" aria-hidden="true"></span> 마이카</button>
         </div>
         <div class="seg" style="margin-top:10px">
           <button class="seg__btn" data-time-mode="now" aria-pressed="${timeMode === "now"}">지금 출발</button>
@@ -168,7 +168,7 @@ async function resultScreen(root, ctx, destination) {
       ${plan ? liveArrivals(plan) : ""}
 
       <div class="row" style="gap:8px;margin-top:12px">
-        <button class="btn btn--primary grow" data-act="share">🔗 ETA 공유</button>
+        <button class="btn btn--primary grow" data-act="share"><span class="icon icon--share" aria-hidden="true"></span> ETA 공유</button>
         <button class="btn btn--ghost grow" data-act="pin-home">홈에 고정</button>
       </div>
 

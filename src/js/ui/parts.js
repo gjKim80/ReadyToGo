@@ -22,7 +22,7 @@ export function adviceBanners(tips) {
     .map(
       (tip) => `
       <div class="banner banner--${tip.tone}">
-        <span class="banner__emoji">${tip.emoji}</span>
+        <span class="banner__icon"><span class="icon icon--${tip.icon}" aria-hidden="true"></span></span>
         <span class="banner__text">${escapeHtml(tip.text)}</span>
       </div>`,
     )
@@ -42,7 +42,7 @@ export function weatherAdviceRow(weather, locationLabel, tips) {
            .map(
              (tip) => `
            <div class="banner banner--compact banner--${tip.tone}">
-             <span class="banner__emoji">${tip.emoji}</span>
+             <span class="banner__icon"><span class="icon icon--${tip.icon}" aria-hidden="true"></span></span>
              <span class="banner__text">${escapeHtml(tip.text)}</span>
            </div>`,
            )
@@ -161,15 +161,20 @@ function badgeText(info) {
 }
 
 /** 자차/도보는 이모지 그대로, 지하철/버스는 실제 노선 색 배지로 표시한다 */
+const NON_TRANSIT_ICON = { walk: "walk", drive: "car" };
+
 function lineBadge(info, { size = "md" } = {}) {
-  if (info.kind !== "subway" && info.kind !== "bus") return info.icon;
+  if (info.kind !== "subway" && info.kind !== "bus") {
+    const icon = NON_TRANSIT_ICON[info.kind];
+    return icon ? `<span class="icon icon--${icon}" aria-hidden="true"></span>` : info.icon;
+  }
   const cls = size === "lg" ? "line-badge line-badge--lg" : "line-badge";
   return `<span class="${cls}" style="background:${escapeHtml(info.color || "#3D5BAB")}">${escapeHtml(badgeText(info))}</span>`;
 }
 
 /* ---------- 경로 상세 ---------- */
 
-const LEG_ICON = { walk: "🚶", wait: "⏱️", subway: "🚇", bus: "🚌", drive: "🚗" };
+const LEG_ICON = { walk: "walk", wait: "wait", subway: "subway", bus: "bus", drive: "car" };
 
 /**
  * 구간별 소요시간을 하나의 가로 바에 비례해서 보여준다 — legsList가 각 구간을
@@ -186,7 +191,7 @@ export function legsTimeline(plan) {
         ${legs
           .map(
             (l) =>
-              `<span class="legs-timeline__seg" style="flex-grow:${l.sec}">${LEG_ICON[l.kind] || ""} ${fmtDur(l.sec)}</span>`,
+              `<span class="legs-timeline__seg" style="flex-grow:${l.sec}">${LEG_ICON[l.kind] ? `<span class="icon icon--${LEG_ICON[l.kind]}" aria-hidden="true"></span> ` : ""}${fmtDur(l.sec)}</span>`,
           )
           .join("")}
       </div>
@@ -331,7 +336,7 @@ export function optionCard(plan, { selected = false, showDetailCta = true, board
 
   return `
     <button class="option" data-plan="${escapeHtml(plan.id)}" aria-pressed="${selected}">
-      ${boardLabel ? `<span class="option__board">🚏 ${escapeHtml(boardLabel)}에서 승차</span>` : ""}
+      ${boardLabel ? `<span class="option__board"><span class="icon icon--bus-stop" aria-hidden="true"></span> ${escapeHtml(boardLabel)}에서 승차</span>` : ""}
       <span class="option__head">
         <span class="option__mode">${lineBadge(plan)} ${escapeHtml(plan.label)}</span>
         ${badge}
@@ -344,12 +349,14 @@ export function optionCard(plan, { selected = false, showDetailCta = true, board
     </button>`;
 }
 
-const KIND_GROUP_LABEL = {
-  subway: "🚇 지하철",
-  bus: "🚌 버스",
-  drive: "🚗 마이카",
-  walk: "🚶 도보",
-};
+const KIND_ICON = { subway: "subway", bus: "bus", drive: "car", walk: "walk" };
+const KIND_LABEL = { subway: "지하철", bus: "버스", drive: "마이카", walk: "도보" };
+
+/** "🚇 지하철"처럼 아이콘 + 이름을 한 조각으로 — 그룹 헤더/추천 헤더가 함께 쓴다 */
+function kindTag(kind) {
+  const icon = KIND_ICON[kind] ? `<span class="icon icon--${KIND_ICON[kind]}" aria-hidden="true"></span> ` : "";
+  return `${icon}${KIND_LABEL[kind] || kind}`;
+}
 
 /** 이동수단 후보를 지하철/버스/마이카/도보로 묶어서 보여준다(플랜 순서는 그대로 유지) */
 export function groupedOptionList(plans, selectedId, { showDetailCta = true } = {}) {
@@ -362,7 +369,7 @@ export function groupedOptionList(plans, selectedId, { showDetailCta = true } = 
     .map((kind) => {
       const items = plans.filter((p) => p.kind === kind);
       return `
-        <p class="section-title" style="margin-top:16px">${KIND_GROUP_LABEL[kind] || kind}</p>
+        <p class="section-title" style="margin-top:16px">${kindTag(kind)}</p>
         <div class="stack">
           ${items.map((p) => optionCard(p, { selected: p.id === selectedId, showDetailCta })).join("")}
         </div>`;
@@ -372,7 +379,7 @@ export function groupedOptionList(plans, selectedId, { showDetailCta = true } = 
 
 /** 홈 화면 상단에 "지하철 추천 · 56분"처럼 지금 뽑힌 플랜을 한 줄로 요약한다 */
 export function recommendedHeader(plan) {
-  return `<p class="section-title section-title--recommend">${KIND_GROUP_LABEL[plan.kind] || ""} 추천 · ${fmtDur(plan.totalSec)}</p>`;
+  return `<p class="section-title section-title--recommend">${kindTag(plan.kind)} 추천 · ${fmtDur(plan.totalSec)}</p>`;
 }
 
 const BUS_PAGE_SIZE = 3;
@@ -393,7 +400,7 @@ export function otherOptionsList(plans, selectedId, { expandedBus = false, showD
 
   const busSection = buses.length
     ? `
-      <p class="section-title" style="margin-top:10px">🚌 버스</p>
+      <p class="section-title" style="margin-top:10px">${kindTag("bus")}</p>
       <div class="stack">
         ${visibleBuses
           .map((p) =>
@@ -405,7 +412,7 @@ export function otherOptionsList(plans, selectedId, { expandedBus = false, showD
           )
           .join("")}
       </div>
-      ${hiddenBusCount > 0 ? `<button type="button" class="link-btn" data-act="more-bus" style="margin-top:8px">버스 ${hiddenBusCount}개 더보기</button>` : ""}`
+      ${hiddenBusCount > 0 ? `<button type="button" class="link-btn link-btn--muted" data-act="more-bus" style="margin-top:8px">버스 ${hiddenBusCount}개 더보기</button>` : ""}`
     : "";
 
   const restSection = rest.length

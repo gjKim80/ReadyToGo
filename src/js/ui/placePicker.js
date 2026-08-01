@@ -113,14 +113,14 @@ export function mountPlacePicker(container, { onSelect, autofocus = true, title 
       <input class="input grow" id="q" type="search" placeholder="${escapeHtml(placeholder)}"
              autocomplete="off" enterkeyhint="search" />
     </div>
-    <button class="btn btn--ghost btn--block" data-act="pin" style="margin-top:8px">🗺️ 지도에서 핀으로 지정</button>
+    <button class="btn btn--ghost btn--block" data-act="pin" style="margin-top:8px"><span class="icon icon--pin" aria-hidden="true"></span> 지도에서 핀으로 지정</button>
 
     <div id="results" style="margin-top:16px"></div>
 
     <div id="shortcuts">
       ${
         favorites.length
-          ? `<p class="section-title" style="margin-top:20px">⭐ 즐겨찾기</p>
+          ? `<p class="section-title" style="margin-top:20px"><span class="icon icon--star-filled" aria-hidden="true"></span> 즐겨찾기</p>
              <div class="card" style="padding:4px 12px">${favorites.map((p) => placeRow(p)).join("")}</div>`
           : ""
       }
