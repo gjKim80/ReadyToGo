@@ -94,8 +94,10 @@ export function countdownBlock(plan, { footNote = "" } = {}) {
 /**
  * 1초마다 호출되는 카운트다운 갱신.
  * @param {HTMLElement} root  countdownBlock을 포함한 컨테이너
+ * @param {string} [normalLabel] "여유" 단계 라벨 대체 문구 — 퇴근처럼 "문 앞"이 아니라
+ *   "회사 문을 나서기"가 더 맞는 맥락에서 home.js가 넘겨준다. 안 주면 기본 문구를 쓴다.
  */
-export function tickCountdown(root, plan, now = new Date()) {
+export function tickCountdown(root, plan, now = new Date(), normalLabel) {
   const box = root.querySelector("[data-countdown]");
   if (!box || !plan) return;
 
@@ -130,7 +132,8 @@ export function tickCountdown(root, plan, now = new Date()) {
     timeEl.innerHTML = `${pad2(m)}:${pad2(s)}`;
   }
 
-  box.querySelector("[data-cd-label]").textContent = URGENCY_LABEL[level];
+  box.querySelector("[data-cd-label]").textContent =
+    level === "normal" && normalLabel ? normalLabel : URGENCY_LABEL[level];
 
   const arriveAt = plan.arriveAt;
   box.querySelector("[data-cd-depart]").innerHTML =

@@ -403,6 +403,8 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
 
 async function renderActive(root, ctx, trip, now0, isWeekday) {
   const view = { plans: [], selectedId: null, weather: null, destWeather: null };
+  // 퇴근 중엔 "문 앞 출발까지"가 어색하다 — 나서는 곳은 집이 아니라 회사니까
+  const countdownNormalLabel = isWeekday && trip.direction === "toHome" ? "회사 문을 나서기" : undefined;
 
   async function load() {
     const s = getState();
@@ -483,7 +485,7 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
         ReadyToGo v${escapeHtml(APP_VERSION)} (dev) · ${escapeHtml(buildTimeLabel())} Update
       </p>`;
 
-    tickCountdown(root, plan);
+    tickCountdown(root, plan, new Date(), countdownNormalLabel);
 
     if (s.settings.notify) scheduleDepartureAlerts(plan, trip.destination.name);
   }
@@ -567,7 +569,7 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
 
   const ticker = setInterval(() => {
     if (disposed) return;
-    tickCountdown(root, selected());
+    tickCountdown(root, selected(), new Date(), countdownNormalLabel);
   }, 1000);
 
   const refresher = setInterval(async () => {
