@@ -639,6 +639,14 @@ body.onboarding-active .view {
 .option__mode { font-size: 15px; font-weight: 800; }
 .option__dur { font-family: var(--font-mono); margin-left: auto; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .option__desc { font-size: 12.5px; font-weight: 600; color: var(--c-ink-3); margin-top: 6px; line-height: 1.5; }
+.option__cta {
+  display: block;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-primary);
+  margin-top: 8px;
+}
 
 /* ---------- 설정 화면(Ready 전): "출발 보드(Departure Board)" 리스킨 ---------- */
 

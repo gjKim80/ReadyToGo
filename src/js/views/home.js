@@ -488,6 +488,38 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
     if (s.settings.notify) scheduleDepartureAlerts(plan, trip.destination.name);
   }
 
+  /** "경로 상세"로 넘어갈 때 쓰는 trip patch — 상단 버튼과 옵션 카드별 CTA가 공유한다 */
+  function goToDetail(plan) {
+    const patch = {
+      destinationId: trip.destination.id,
+      originId: trip.origin.id || null,
+      mode: plan?.kind === "drive" ? "driving" : "transit",
+    };
+    // 홈에서 쓰던 시각 기준(출근=도착 목표 / 퇴근=출발 시각)을 경로 상세 화면에도 그대로 넘긴다 —
+    // 안 그러면 저기선 "지금 출발" 기준으로 다시 계산돼 홈에서 맞춘 시각과 어긋난다
+    if (trip.arriveBy) {
+      patch.timeMode = "arrive";
+      patch.arriveBy = fmtClock(trip.arriveBy);
+    } else if (isWeekday && trip.direction === "toHome") {
+      patch.timeMode = "depart";
+      patch.departAt = fmtClock(trip.planNow);
+    } else {
+      patch.timeMode = "now";
+    }
+    setTrip(patch);
+    location.hash = "#/route";
+  }
+
+  // 옵션 카드 자체의 "상세" CTA — 카드를 고르고 바로 넘어간다. [data-plan]보다 먼저 등록해서
+  // 여기서 stopImmediatePropagation()하면 [data-plan]의 재렌더링(paint)이 안 끼어든다
+  delegate(root, "click", "[data-detail-plan]", (e, el) => {
+    e.stopImmediatePropagation();
+    const plan = view.plans.find((p) => p.id === el.dataset.detailPlan);
+    if (!plan) return;
+    view.selectedId = plan.id;
+    goToDetail(plan);
+  });
+
   delegate(root, "click", "[data-plan]", (_e, el) => {
     view.selectedId = el.dataset.plan;
     paint();
@@ -513,24 +545,7 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
       return;
     }
     if (act === "detail") {
-      const patch = {
-        destinationId: trip.destination.id,
-        originId: trip.origin.id || null,
-        mode: selected()?.kind === "drive" ? "driving" : "transit",
-      };
-      // 홈에서 쓰던 시각 기준(출근=도착 목표 / 퇴근=출발 시각)을 경로 상세 화면에도 그대로 넘긴다 —
-      // 안 그러면 저기선 "지금 출발" 기준으로 다시 계산돼 홈에서 맞춘 시각과 어긋난다
-      if (trip.arriveBy) {
-        patch.timeMode = "arrive";
-        patch.arriveBy = fmtClock(trip.arriveBy);
-      } else if (isWeekday && trip.direction === "toHome") {
-        patch.timeMode = "depart";
-        patch.departAt = fmtClock(trip.planNow);
-      } else {
-        patch.timeMode = "now";
-      }
-      setTrip(patch);
-      location.hash = "#/route";
+      goToDetail(selected());
       return;
     }
     if (act === "share") {

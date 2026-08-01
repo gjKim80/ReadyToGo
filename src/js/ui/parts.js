@@ -280,8 +280,11 @@ export function liveArrivals(plan) {
     </div>`;
 }
 
-/** 이동수단 후보 카드 */
-export function optionCard(plan, { selected = false } = {}) {
+/** 이동수단 후보 카드
+ * @param {boolean} showDetailCta 카드 안에 "경로 상세 →" 바로가기를 보여줄지 — 이미 경로
+ *   상세 화면(route.js)에서 쓰는 경우엔 "지금 보고 있는 화면으로 다시 가기"가 되어
+ *   의미가 없으므로 false로 끈다. */
+export function optionCard(plan, { selected = false, showDetailCta = true } = {}) {
   const slack = plan.slackSec;
   const badge = plan.late
     ? `<span class="badge badge--live">도착 지연</span>`
@@ -304,6 +307,7 @@ export function optionCard(plan, { selected = false } = {}) {
       <span class="option__desc">
         ${fmtClock(plan.leaveAt)} 출발 → ${fmtClock(plan.arriveAt)} 도착${traffic} · ${fmtDistance(plan.distance)}
       </span>
+      ${showDetailCta ? `<span class="option__cta" data-detail-plan="${escapeHtml(plan.id)}">경로 상세 →</span>` : ""}
     </button>`;
 }
 
@@ -315,7 +319,7 @@ const KIND_GROUP_LABEL = {
 };
 
 /** 이동수단 후보를 지하철/버스/마이카/도보로 묶어서 보여준다(플랜 순서는 그대로 유지) */
-export function groupedOptionList(plans, selectedId) {
+export function groupedOptionList(plans, selectedId, { showDetailCta = true } = {}) {
   const order = [];
   plans.forEach((p) => {
     if (!order.includes(p.kind)) order.push(p.kind);
@@ -327,7 +331,7 @@ export function groupedOptionList(plans, selectedId) {
       return `
         <p class="section-title" style="margin-top:16px">${KIND_GROUP_LABEL[kind] || kind}</p>
         <div class="stack">
-          ${items.map((p) => optionCard(p, { selected: p.id === selectedId })).join("")}
+          ${items.map((p) => optionCard(p, { selected: p.id === selectedId, showDetailCta })).join("")}
         </div>`;
     })
     .join("");

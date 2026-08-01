@@ -46,7 +46,12 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
   const ride = itinerary.rideSec;
   const tail = (ride + walkFrom) * 1000;
 
-  const arrivals = extendArrivals(itinerary.arrivals, itinerary.headwaySec, arriveBy);
+  // arriveBy(도착 희망) 없이도 now 자체가 미래일 수 있다 — 퇴근 모드는 arriveBy가 항상
+  // null이고 대신 "회사 출발 희망 시각"을 now로 넘긴다(resolveTrip 참고). 그런데 원본
+  // arrivals는 실시간/배차 기준으로 가까운 미래 몇 대만 담고 있어서, now가 몇 시간 뒤면
+  // 그 안에 탈 수 있는 차가 하나도 안 잡혀 "지각"으로 폴백해버렸다 — now까지는 항상 늘려준다.
+  const extendUntil = arriveBy && arriveBy.getTime() > now.getTime() ? arriveBy : now;
+  const arrivals = extendArrivals(itinerary.arrivals, itinerary.headwaySec, extendUntil);
   const earliestBoard = now.getTime() + (walkTo + bufferSec) * 1000;
   const catchable = arrivals.filter((a) => a.at.getTime() >= earliestBoard);
 

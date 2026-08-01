@@ -162,7 +162,7 @@ async function resultScreen(root, ctx, destination) {
       ${plan ? `<div class="card" style="margin-top:12px">${countdownBlock(plan)}</div>` : ""}
       ${adviceBanners(buildAdvice(view.weather, view.destWeather, plan))}
 
-      ${groupedOptionList(view.plans, view.selectedId)}
+      ${groupedOptionList(view.plans, view.selectedId, { showDetailCta: false })}
 
       ${plan ? `<div class="card" style="margin-top:12px">${legsTimeline(plan)}${legsList(plan)}${planNotes(plan)}${approachLine(plan)}</div>` : ""}
       ${plan ? liveArrivals(plan) : ""}
