@@ -23,6 +23,7 @@ import {
   countdownBlock,
   groupedOptionList,
   legsList,
+  legsTimeline,
   liveArrivals,
   planNotes,
   tickCountdown,
@@ -163,7 +164,7 @@ async function resultScreen(root, ctx, destination) {
 
       ${groupedOptionList(view.plans, view.selectedId)}
 
-      ${plan ? `<div class="card" style="margin-top:12px">${legsList(plan)}${planNotes(plan)}${approachLine(plan)}</div>` : ""}
+      ${plan ? `<div class="card" style="margin-top:12px">${legsTimeline(plan)}${legsList(plan)}${planNotes(plan)}${approachLine(plan)}</div>` : ""}
       ${plan ? liveArrivals(plan) : ""}
 
       <div class="row" style="gap:8px;margin-top:12px">

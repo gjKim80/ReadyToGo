@@ -160,6 +160,33 @@ function lineBadge(plan, { size = "md" } = {}) {
 
 /* ---------- 경로 상세 ---------- */
 
+const LEG_ICON = { walk: "🚶", wait: "⏱️", subway: "🚇", bus: "🚌", drive: "🚗" };
+
+/**
+ * 구간별 소요시간을 하나의 가로 바에 비례해서 보여준다 — legsList가 각 구간을
+ * 세로로 나열하는 "상세"라면, 이건 "전체 중 도보/탑승 비중"을 한눈에 보는 "요약".
+ * 구간이 하나뿐이면(예: 마이카 단독) 비교할 게 없어서 생략한다.
+ */
+export function legsTimeline(plan) {
+  const legs = plan.legs.filter((l) => l.sec > 0);
+  if (legs.length < 2) return "";
+
+  return `
+    <div class="legs-timeline">
+      <div class="legs-timeline__labels">
+        ${legs
+          .map(
+            (l) =>
+              `<span class="legs-timeline__seg" style="flex-grow:${l.sec}">${LEG_ICON[l.kind] || ""} ${fmtDur(l.sec)}</span>`,
+          )
+          .join("")}
+      </div>
+      <div class="legs-timeline__bar">
+        ${legs.map((l) => `<span class="legs-timeline__fill" data-kind="${l.kind}" style="flex-grow:${l.sec}"></span>`).join("")}
+      </div>
+    </div>`;
+}
+
 export function legsList(plan) {
   return `
     <ul class="legs">

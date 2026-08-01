@@ -25,6 +25,7 @@ import {
   countdownBlock,
   groupedOptionList,
   legsList,
+  legsTimeline,
   liveArrivals,
   planNotes,
   tickCountdown,
@@ -462,7 +463,7 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
         ${plan ? countdownBlock(plan) : `<p class="empty">경로를 찾을 수 없습니다.</p>`}
       </div>
 
-      ${plan ? `<div class="card">${legsList(plan)}${planNotes(plan)}${approachLine(plan)}</div>` : ""}
+      ${plan ? `<div class="card">${legsTimeline(plan)}${legsList(plan)}${planNotes(plan)}${approachLine(plan)}</div>` : ""}
       ${plan ? liveArrivals(plan) : ""}
 
       ${

@@ -499,6 +499,27 @@ body.onboarding-active .view {
 
 /* ---------- Route breakdown ---------- */
 
+/* 구간별 소요시간 비례 바 — legsList(세로 상세) 위에 얹는 한눈 요약 */
+.legs-timeline { margin-bottom: 14px; }
+.legs-timeline__labels { display: flex; margin-bottom: 6px; }
+.legs-timeline__seg {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-ink-2);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.legs-timeline__seg:first-child { text-align: left; }
+.legs-timeline__seg:last-child { text-align: right; }
+.legs-timeline__bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--c-fill); }
+.legs-timeline__fill { height: 100%; background: var(--c-line); }
+.legs-timeline__fill[data-kind="subway"],
+.legs-timeline__fill[data-kind="bus"],
+.legs-timeline__fill[data-kind="drive"] { background: var(--c-primary); }
+.legs-timeline__fill[data-kind="wait"] { background: var(--c-danger); }
+
 .legs { position: relative; padding-left: 26px; }
 .legs::before {
   content: "";
