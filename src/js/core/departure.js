@@ -146,10 +146,17 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
     }));
 
   // 탑승 예정 열차(chosen) 기준 앞뒤로 2대씩, 총 5대 — "이 차를 놓치면/이 차보다 일찍
-  // 가면"을 판단할 수 있게 지금 시각이 아니라 탑승 시각을 중심으로 잘라낸다. chosen이
-  // 배열 끝/시작에 가까워 한쪽이 모자라면 반대쪽에서 더 끌어와 최대한 5대를 채운다.
-  const chosenIdx = arrivals.indexOf(chosen);
+  // 가면"을 판단할 수 있게 지금 시각이 아니라 탑승 시각을 중심으로 잘라낸다.
   const WINDOW_HALF = 2;
+  const chosenIdx = arrivals.indexOf(chosen);
+  // arrivals는 도착 희망 시각(extendUntil)까지만 늘어나 있어서, "늦지 않는 선에서
+  // 가장 늦게 출발하는 차"를 고르면 chosen이 배열 맨 끝에 걸려 뒤가 통째로 비기 쉽다 —
+  // 그러면 앞쪽만 4대씩 보이고 "이후 열차" 정보가 하나도 안 남으므로, 화면 표시용으로만
+  // 배차간격을 이어붙여 뒤쪽도 최소 2대를 확보한다.
+  while (arrivals.length - 1 - chosenIdx < WINDOW_HALF) {
+    const last = arrivals[arrivals.length - 1];
+    arrivals.push({ at: new Date(last.at.getTime() + itinerary.headwaySec * 1000), live: false, crowding: last.crowding });
+  }
   let windowStart = chosenIdx - WINDOW_HALF;
   let windowEnd = chosenIdx + WINDOW_HALF + 1;
   if (windowStart < 0) {
