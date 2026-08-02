@@ -312,7 +312,7 @@ export function liveArrivals(plan) {
             : `<span class="badge badge--warn">배차 기준 예정</span>`
         }
       </div>
-      <div class="row" style="gap:8px;flex-wrap:wrap">${chips}</div>
+      <div class="${isSubway ? "arrival-chips" : "row"}" style="${isSubway ? "" : "gap:8px;flex-wrap:wrap"}">${chips}</div>
     </div>`;
 }
 
