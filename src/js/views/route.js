@@ -3,7 +3,7 @@
 import { getWeather } from "../api/weather.js";
 import { planTrip } from "../core/departure.js";
 import { buildAdvice } from "../core/advice.js";
-import { buildShareText, shareText } from "../core/share.js";
+import { buildShareText, openTmap, shareText } from "../core/share.js";
 import {
   getHome,
   getPlace,
@@ -167,9 +167,14 @@ async function resultScreen(root, ctx, destination) {
       ${plan ? `<div class="card" style="margin-top:12px">${legsTimeline(plan)}${legsList(plan)}${planNotes(plan)}${approachLine(plan)}</div>` : ""}
       ${plan ? liveArrivals(plan) : ""}
 
-      <div class="row" style="gap:8px;margin-top:12px">
+      <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap">
         <button class="btn btn--primary grow" data-act="share"><span class="icon icon--share" aria-hidden="true"></span> ETA 공유</button>
         <button class="btn btn--ghost grow" data-act="pin-home">홈에 고정</button>
+        ${
+          plan?.kind === "drive"
+            ? `<button class="btn btn--ghost btn--block" data-act="tmap"><span class="icon icon--navigate" aria-hidden="true"></span> T맵으로 길안내</button>`
+            : ""
+        }
       </div>
 
       <p class="app-footer">ReadyToGo · 경로 상세</p>`;
@@ -254,6 +259,8 @@ async function resultScreen(root, ctx, destination) {
       );
       if (result === "copied") toast("공유 문구를 클립보드에 복사했어요");
       else if (result === "failed") toast("공유에 실패했어요");
+    } else if (act === "tmap") {
+      openTmap(destination);
     }
   });
 

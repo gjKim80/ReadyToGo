@@ -2,6 +2,28 @@
 
 import { fmtClock, fmtDur } from "../util.js";
 
+/** 앱이 없을 때 보낼 스토어 — T맵은 현재 위치 기준으로 안내하므로 출발지 좌표는 넘기지 않는다 */
+const TMAP_STORE_URL = /android/i.test(navigator.userAgent)
+  ? "https://play.google.com/store/apps/details?id=com.skt.tmap.ku"
+  : "https://apps.apple.com/kr/app/id431589174";
+
+export function buildTmapUrl(destination) {
+  const params = new URLSearchParams({
+    goalname: destination.name,
+    goalx: String(destination.lng),
+    goaly: String(destination.lat),
+  });
+  return `tmap://route?${params}`;
+}
+
+/** T맵 앱으로 전환 — 잠깐 기다려도 화면이 그대로면(=앱이 안 열렸으면) 스토어로 보낸다 */
+export function openTmap(destination) {
+  location.href = buildTmapUrl(destination);
+  setTimeout(() => {
+    if (!document.hidden) location.href = TMAP_STORE_URL;
+  }, 1200);
+}
+
 /** 수신자가 열면 동일한 목적지로 경로가 세팅되는 딥링크 */
 export function buildDeepLink(destination) {
   const url = new URL(location.href);

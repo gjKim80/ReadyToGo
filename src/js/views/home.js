@@ -4,7 +4,7 @@ import { getWeather } from "../api/weather.js";
 import { getCurrentPosition, reverseGeocode } from "../api/places.js";
 import { planTrip } from "../core/departure.js";
 import { buildAdvice } from "../core/advice.js";
-import { buildShareText, shareText } from "../core/share.js";
+import { buildShareText, openTmap, shareText } from "../core/share.js";
 import { clearAlerts, scheduleDepartureAlerts } from "../core/notify.js";
 import { APP_VERSION, buildTimeLabel } from "../version.js";
 import {
@@ -540,7 +540,14 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
           ? `${recommendedHeader(plan)}
              <div class="card" style="margin-top:8px">
                ${legsTimeline(plan)}${legsList(plan)}${planNotes(plan)}${approachLine(plan)}
-               <button class="btn btn--sm btn--ghost" data-act="share" style="margin-top:12px"><span class="icon icon--share" aria-hidden="true"></span> ETA 공유</button>
+               <div class="row" style="gap:8px;margin-top:12px">
+                 <button class="btn btn--sm btn--ghost" data-act="share"><span class="icon icon--share" aria-hidden="true"></span> ETA 공유</button>
+                 ${
+                   plan.kind === "drive"
+                     ? `<button class="btn btn--sm btn--ghost" data-act="tmap"><span class="icon icon--navigate" aria-hidden="true"></span> T맵으로 길안내</button>`
+                     : ""
+                 }
+               </div>
              </div>`
           : ""
       }
@@ -615,6 +622,10 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
     if (act === "more-bus") {
       view.busExpanded = true;
       paint();
+      return;
+    }
+    if (act === "tmap") {
+      openTmap(trip.destination);
     }
   });
 
