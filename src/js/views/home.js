@@ -371,7 +371,10 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
     ctx.refresh?.();
   });
 
-  delegate(root, "change", "[data-commute-quick]", (_e, el) => {
+  // iOS는 시/분을 따로따로 커밋할 때마다 change를 쏜다 — 그때마다 다시 그리면 휠 피커가
+  // 아직 열려 있는 input을 통째로 갈아치우게 돼 시만 고치고 튕겨나온다. 포커스가 완전히
+  // 빠져나갔을 때(focusout)만 반영한다.
+  delegate(root, "focusout", "[data-commute-quick]", (_e, el) => {
     if (!el.value) return;
     setCommute({ [el.dataset.commuteQuick]: el.value });
     toast("출퇴근 시각을 저장했어요");
@@ -394,7 +397,7 @@ function renderSetup(root, ctx, state, now0, isWeekday, trip) {
     ctx.refresh?.();
   });
 
-  delegate(root, "change", "#arriveBy", (_e, el) => {
+  delegate(root, "focusout", "#arriveBy", (_e, el) => {
     setTrip({ arriveBy: el.value || null });
     ctx.refresh?.();
   });

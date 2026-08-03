@@ -221,7 +221,9 @@ async function resultScreen(root, ctx, destination) {
     paint();
   });
 
-  delegate(root, "change", "#planTime", async (_e, el) => {
+  // 홈 화면과 같은 이유로 focusout에서만 반영한다 — iOS는 시/분을 따로 커밋해서 change가
+  // 여러 번 오는데, 그때마다 다시 그리면 아직 열려 있는 휠 피커의 input이 통째로 바뀐다.
+  delegate(root, "focusout", "#planTime", async (_e, el) => {
     const timeMode = getState().trip.timeMode || "now";
     if (timeMode === "arrive") setTrip({ arriveBy: el.value || null });
     else if (timeMode === "depart") setTrip({ departAt: el.value || null });
