@@ -550,6 +550,11 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
                      ? `<button class="btn btn--sm btn--ghost" data-act="tmap"><span class="icon icon--navigate" aria-hidden="true"></span> T맵으로 길안내</button>`
                      : ""
                  }
+                 ${
+                   plan.kind === "subway"
+                     ? `<button class="btn btn--sm btn--primary" data-act="start-guide"><span class="icon icon--navigate" aria-hidden="true"></span> 이 경로로 안내 시작</button>`
+                     : ""
+                 }
                </div>
              </div>`
           : ""
@@ -629,6 +634,31 @@ async function renderActive(root, ctx, trip, now0, isWeekday) {
     }
     if (act === "tmap") {
       openTmap(trip.destination);
+      return;
+    }
+    if (act === "start-guide") {
+      const plan = selected();
+      if (!plan) return;
+      const completeMessage = isWeekday
+        ? trip.direction === "toWork"
+          ? "출근하느라 수고하셨어요! 오늘 하루도 힘내세요 💪"
+          : "퇴근하느라 수고하셨어요! 푹 쉬세요 🌙"
+        : "목적지에 도착했어요! 오늘도 수고하셨어요.";
+      setTrip({
+        guidance: {
+          active: true,
+          startedAt: new Date().toISOString(),
+          planSnapshot: {
+            legs: plan.legs,
+            totalSec: plan.totalSec,
+            destination: { lat: trip.destination.lat, lng: trip.destination.lng },
+            destinationName: trip.destination.name,
+            completeMessage,
+          },
+          alertedGetOff: false,
+        },
+      });
+      location.hash = "#/guide";
     }
   });
 

@@ -61,6 +61,24 @@ function stopNameFor(seed, kind) {
   return kind === "subway" ? `${area}역` : `${area} 정류장`;
 }
 
+/** origin→destination 직선을 따라 t(0~1) 지점 좌표 — 실제 노선 모양은 아니지만 실시간
+ * 안내 모드를 목 데이터로도 테스트할 수 있게 그럴듯한 좌표를 만들어 준다 */
+const lerp = (origin, destination, t) => ({
+  lat: origin.lat + (destination.lat - origin.lat) * t,
+  lng: origin.lng + (destination.lng - origin.lng) * t,
+});
+
+/** 지하철 구간의 경유역 목록을 board~alight 사이에 등간격으로 지어낸다 */
+function mockStops(seed, origin, destination, boardName, alightName, count) {
+  const stops = [{ name: boardName, ...lerp(origin, destination, 0.08) }];
+  for (let i = 1; i < count - 1; i += 1) {
+    const t = 0.08 + (0.84 * i) / (count - 1);
+    stops.push({ name: stopNameFor(`${seed}:st${i}`, "subway"), ...lerp(origin, destination, t) });
+  }
+  stops.push({ name: alightName, ...lerp(origin, destination, 0.92) });
+  return stops;
+}
+
 function mockItineraries(origin, destination, now, walkPace = 1) {
   const distance = haversine(origin, destination);
   const seed = `${origin.lat.toFixed(3)},${origin.lng.toFixed(3)}>${destination.lat.toFixed(3)},${destination.lng.toFixed(3)}`;
@@ -77,17 +95,22 @@ function mockItineraries(origin, destination, now, walkPace = 1) {
     // 표정속도 약 32km/h + 환승 1회당 4분
     const rideSec = Math.round((distance * 1.25) / (32000 / 3600)) + transfers * 240;
     const headway = seededInt(`${seed}:sh`, 180, 420);
+    const boardName = stopNameFor(`${seed}:sb`, "subway");
+    const alightName = stopNameFor(`${seed}:sa`, "subway");
+    const stopCount = seededInt(`${seed}:scount`, 4, 8);
+    const stops = mockStops(seed, origin, destination, boardName, alightName, stopCount);
 
     options.push({
       id: "subway",
       type: "subway",
       line,
-      board: { name: stopNameFor(`${seed}:sb`, "subway"), walkSec: boardWalk },
-      alight: { name: stopNameFor(`${seed}:sa`, "subway"), walkSec: alightWalk },
+      board: { name: boardName, walkSec: boardWalk, lat: stops[0].lat, lng: stops[0].lng },
+      alight: { name: alightName, walkSec: alightWalk, lat: stops[stops.length - 1].lat, lng: stops[stops.length - 1].lng },
       rideSec,
       transfers,
       headwaySec: headway,
       arrivals: buildArrivals(`${seed}:sub`, headway, now, 8, true),
+      stops,
     });
   }
 

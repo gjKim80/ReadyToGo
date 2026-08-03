@@ -228,6 +228,41 @@ body.onboarding-active .view {
   padding: max(24px, env(safe-area-inset-top, 0px)) 20px calc(20px + max(12px, env(safe-area-inset-bottom, 0px)));
 }
 
+/* 탑승 중 안내 화면도 같은 이유로 상단바/하단 탭을 숨긴다 — "안내 종료" 버튼이 유일한 탈출구 */
+body.guidance-active .topbar,
+body.guidance-active .tabbar {
+  display: none;
+}
+body.guidance-active .view {
+  padding: max(24px, env(safe-area-inset-top, 0px)) 20px calc(20px + max(12px, env(safe-area-inset-bottom, 0px)));
+}
+
+/* ---------- 탑승 중 실시간 안내 (#/guide) ---------- */
+
+.guide-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.guide-header .icon { width: 1.3em; height: 1.3em; color: var(--c-primary); }
+.guide-header__dest { font-size: 15px; font-weight: 800; color: var(--c-ink); }
+
+.guide-status { text-align: center; padding: 22px 16px; }
+.guide-status__text { font-size: 17px; font-weight: 800; color: var(--c-ink); margin-bottom: 8px; line-height: 1.4; }
+.guide-status__eta {
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--c-primary-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.guide-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 80px 24px 0;
+}
+.guide-complete__emoji { font-size: 56px; margin-bottom: 18px; }
+.guide-complete__text { font-size: 19px; font-weight: 800; color: var(--c-ink); line-height: 1.5; }
+
 .tabbar {
   position: fixed;
   bottom: 0;

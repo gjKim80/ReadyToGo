@@ -280,6 +280,16 @@ async function fetchBusArrival({ arsId, busNo }) {
  * 뭉개버렸다. 사용자가 "환승인지 직통인지, 환승이면 어디서 무슨 노선을 타야 하는지"를
  * 알 수 있게 탑승 구간을 하나씩 그대로 배열로 남긴다.
  */
+/**
+ * 지하철 구간의 경유역 목록 — 실시간 탑승 안내(남은 역 안내)용. passStopList가 이미
+ * 역명/좌표를 갖고 있는데 지금까지는 지도 폴리라인 그릴 때 좌표만 뽑고 버렸다.
+ */
+function stopsOf(leg) {
+  const stations = leg.passStopList?.stations;
+  if (!stations?.length) return null;
+  return stations.map((st) => ({ name: st.stationName, lat: Number(st.y), lng: Number(st.x) }));
+}
+
 function buildSegments(subPaths, legs, walkPace) {
   return legs.map((leg, i) => {
     let transferWalkSec = 0;
@@ -293,13 +303,17 @@ function buildSegments(subPaths, legs, walkPace) {
           .reduce((acc, s) => acc + minToSec(s.sectionTime), 0) / walkPace,
       );
     }
+    const isSubway = leg.trafficType === SUBWAY;
     return {
-      type: leg.trafficType === SUBWAY ? "subway" : "bus",
+      type: isSubway ? "subway" : "bus",
       line: lineOf(leg),
-      board: { name: leg.startName },
-      alight: { name: leg.endName },
+      board: { name: leg.startName, lat: leg.startY, lng: leg.startX },
+      alight: { name: leg.endName, lat: leg.endY, lng: leg.endX },
       rideSec: minToSec(leg.sectionTime),
       transferWalkSec,
+      // 실시간 탑승 안내는 지하철만 지원한다 — 버스는 정류장 간 시간 편차가 커서
+      // "몇 정거장 전" 추정이 부정확하다
+      stops: isSubway ? stopsOf(leg) : null,
     };
   });
 }

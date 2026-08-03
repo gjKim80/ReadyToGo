@@ -23,6 +23,8 @@ const APP_SHELL = [
   "./src/js/core/advice.js",
   "./src/js/core/share.js",
   "./src/js/core/notify.js",
+  "./src/js/core/guidance.js",
+  "./src/js/core/track.js",
   "./src/js/ui/components.js",
   "./src/js/ui/icons.js",
   "./src/js/ui/map.js",
@@ -31,6 +33,7 @@ const APP_SHELL = [
   "./src/js/views/route.js",
   "./src/js/views/places.js",
   "./src/js/views/settings.js",
+  "./src/js/views/guide.js",
   "./assets/icon.svg",
   "./assets/icon-192.png",
 ];

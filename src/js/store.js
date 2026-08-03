@@ -52,6 +52,16 @@ const DEFAULT_STATE = {
     active: false,
     /** 평일 모드에서 active 상태로 고정된 방향. null이면 시간대 기준 자동판단 */
     weekdayDirection: null,
+    /** 탑승 중 실시간 안내(#/guide) 세션 — "이 경로로 안내 시작"을 누르면 채워진다 */
+    guidance: {
+      active: false,
+      /** ISO — 진행률(guidance.js estimateProgress)의 경과시간 기준점 */
+      startedAt: null,
+      /** { legs, totalSec, destination:{lat,lng,name} } — 새로고침해도 안내를 이어갈 수 있게 저장 */
+      planSnapshot: null,
+      /** 하차 알림을 이미 보냈는지 — 세션당 한 번만 울리게 한다 */
+      alertedGetOff: false,
+    },
   },
 };
 

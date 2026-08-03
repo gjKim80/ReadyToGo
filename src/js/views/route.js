@@ -175,6 +175,11 @@ async function resultScreen(root, ctx, destination) {
             ? `<button class="btn btn--ghost btn--block" data-act="tmap"><span class="icon icon--navigate" aria-hidden="true"></span> T맵으로 길안내</button>`
             : ""
         }
+        ${
+          plan?.kind === "subway"
+            ? `<button class="btn btn--ghost btn--block" data-act="start-guide"><span class="icon icon--navigate" aria-hidden="true"></span> 이 경로로 안내 시작</button>`
+            : ""
+        }
       </div>
 
       <p class="app-footer">ReadyToGo · 경로 상세</p>`;
@@ -263,6 +268,24 @@ async function resultScreen(root, ctx, destination) {
       else if (result === "failed") toast("공유에 실패했어요");
     } else if (act === "tmap") {
       openTmap(destination);
+    } else if (act === "start-guide") {
+      const plan = selected();
+      if (!plan) return;
+      setTrip({
+        guidance: {
+          active: true,
+          startedAt: new Date().toISOString(),
+          planSnapshot: {
+            legs: plan.legs,
+            totalSec: plan.totalSec,
+            destination: { lat: destination.lat, lng: destination.lng },
+            destinationName: destination.name,
+            completeMessage: "목적지에 도착했어요! 오늘도 수고하셨어요.",
+          },
+          alertedGetOff: false,
+        },
+      });
+      location.hash = "#/guide";
     }
   });
 

@@ -10,6 +10,7 @@ const ROUTES = {
   "/places": () => import("./views/places.js"),
   "/settings": () => import("./views/settings.js"),
   "/onboarding": () => import("./views/onboarding.js"),
+  "/guide": () => import("./views/guide.js"),
 };
 
 let cleanup = null;
@@ -43,6 +44,8 @@ function syncChrome(path) {
 
   // 온보딩 중엔 상단바/하단 탭을 숨겨 마법사에만 집중하게 한다
   document.body.classList.toggle("onboarding-active", path === "/onboarding");
+  // 탑승 중 안내도 마찬가지 — 실수로 다른 탭을 눌러 추적 루프가 끊기지 않게 한다
+  document.body.classList.toggle("guidance-active", path === "/guide");
 }
 
 /** 뷰 컨테이너를 새 요소로 교체해 이전 화면의 이벤트 리스너를 함께 폐기한다. */

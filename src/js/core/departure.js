@@ -85,7 +85,17 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
   // 환승 상세가 없을 뿐 동작은 그대로다.
   const segments = itinerary.segments?.length
     ? itinerary.segments
-    : [{ type: itinerary.type, line: itinerary.line, board: itinerary.board, alight: itinerary.alight, rideSec: ride, transferWalkSec: 0 }];
+    : [
+        {
+          type: itinerary.type,
+          line: itinerary.line,
+          board: itinerary.board,
+          alight: itinerary.alight,
+          rideSec: ride,
+          transferWalkSec: 0,
+          stops: itinerary.stops || null,
+        },
+      ];
 
   const legs = [
     {
@@ -93,6 +103,7 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
       title: `${segments[0].board.name}까지 도보`,
       sub: "출발지에서 승차 지점까지",
       sec: walkTo,
+      to: segments[0].board,
     },
     {
       kind: "wait",
@@ -113,6 +124,7 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
         // 같은 역/정류장에서 갈아타면 "OO → OO"로 겹쳐 보이니 그때는 생략한다
         sub: prevAlight === seg.board.name ? "같은 역에서 환승" : `${prevAlight} → ${seg.board.name} 이동`,
         sec: seg.transferWalkSec || 0,
+        to: seg.board,
       });
     }
     legs.push({
@@ -122,6 +134,10 @@ function planTransit(itinerary, { now, arriveBy, bufferSec }) {
       sec: seg.rideSec,
       // 환승이 있으면 구간마다 노선이 다르므로, 배지(번호+색)도 이 구간 것을 써야 한다
       line: seg.line,
+      // 실시간 안내(guidance.js)가 "지금 몇 번째 역 근처인지" 추정하는 데 쓴다 — 지하철만 채워진다
+      board: seg.board,
+      alight: seg.alight,
+      stops: seg.stops || null,
     });
   });
   legs.push({

@@ -149,8 +149,10 @@ export async function reverseGeocode(coord, { signal } = {}) {
   return { name: `${near.dong} 인근`, address, icon: "📍" };
 }
 
-/** 브라우저 위치 권한 기반 현재 위치. 거부/실패 시 기본 좌표(서울시청) 반환. */
-export function getCurrentPosition({ timeout = 6000 } = {}) {
+/** 브라우저 위치 권한 기반 현재 위치. 거부/실패 시 기본 좌표(서울시청) 반환.
+ * @param {boolean} [enableHighAccuracy] 탑승 중 실시간 안내처럼 정확도가 중요할 때만 켠다 —
+ *   배터리를 더 쓰므로 "현재 위치" 칩 같은 1회성 조회는 기본값(false)을 그대로 쓴다. */
+export function getCurrentPosition({ timeout = 6000, enableHighAccuracy = false } = {}) {
   const fallback = { lat: 37.5665, lng: 126.9780, approximate: true };
   if (!navigator.geolocation) return Promise.resolve(fallback);
 
@@ -158,7 +160,7 @@ export function getCurrentPosition({ timeout = 6000 } = {}) {
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, approximate: false }),
       () => resolve(fallback),
-      { timeout, maximumAge: 120000, enableHighAccuracy: false },
+      { timeout, maximumAge: 120000, enableHighAccuracy },
     );
   });
 }
